@@ -93,8 +93,6 @@
        "\""))
 
 (defmethod serialize-term clojure.lang.Keyword [k]
-  ;; XXX this should raise an informative error message which tells the
-  ;; user what value of k it didn't like
   (if-not (u k) (throw (ex-info "unrecognised prefix"
                                 {:prefix k})))
   (serialize-term (u k)))

@@ -11,10 +11,11 @@ Originally extracted from booksh.lv
 
     (require '[speckled.sparql :refer [->string group ?]])
     (->string
-      (group [(? :a)
-              :rdfs:label
-              "Bertrand Russell Peace Foundation"]
-             [(? :a) :rdf:type :dct:Agent] )
+        (solve
+         (group [(? :a)
+                 :rdfs:label
+                 "Bertrand Russell Peace Foundation"]
+                [(? :a) :rdf:type :dct:Agent] )
  
 
 ### Performing a query against the server
