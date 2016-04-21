@@ -409,15 +409,12 @@
 
 
 (defn query-for-graph [post-fn sparql]
-  (let [response (-> sparql
-                     rdf-to-query-form
-                     rdf-to-string
-                     declare-prefixes
-                     (post-sparql
-                      post-fn
-                      "query"
-                      "application/sparql-query"
-                      "application/n-triples"))]
+  (let [response (post-sparql
+                  post-fn
+                  (->string sparql)
+                  "query"
+                  "application/sparql-query"
+                  "application/n-triples")]
     (rdf/parse-n-triples response)))
 
 
