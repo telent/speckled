@@ -362,6 +362,22 @@
                           "application/sparql-results+xml")]
     (parse-sparql-response-body body)))
 
+;;
+(defn update-store [post-fun sparql]
+  ;; according to
+  ;; https://www.w3.org/TR/2013/REC-sparql11-protocol-20130321/#update-operation
+  ;; "The response body of a successful update request is
+  ;; implementation defined."
+  ;; so if we get to the end of post-sparql, we kind of have to
+  ;; assume everything worked
+  (and
+   (post-sparql post-fun
+                (->string sparql)
+                "update"
+                "application/sparql-update"
+                "text/*")
+   true))
+
 #_
 (defn update-store [post-fn sparql]
   (let [res (post-sparql post-fn
