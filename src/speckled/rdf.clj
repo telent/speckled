@@ -93,8 +93,8 @@
        "\""))
 
 (defmethod serialize-term clojure.lang.Keyword [k]
-  (if-not (u k) (throw (ex-info "unrecognised prefix"
-                                {:prefix k})))
+  (if-not (u k) (throw (ex-info "unrecognised prefix in keyword "
+                                {:keyword k})))
   (serialize-term (u k)))
 
 (defn to-iso8601 [datetime]
