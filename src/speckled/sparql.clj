@@ -299,6 +299,15 @@
   (str (rdf-to-string (.proj v))
        " LIMIT " (.limit v)))
 
+(deftest limits
+  (is (equal-but-for-whitespace
+       (rdf-to-string
+        (limit
+         (select (map ? [:a :b])
+                 (solve (group [(? :a) :rdfs:label (? :b)])))
+         3))
+       "SELECT ?a ?b WHERE { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} LIMIT 3")))
+
 ;; maybe we could turn this into an Update with a ::update-form kind
 (defn triples-to-string [triples]
   (str
@@ -313,16 +322,6 @@
     (triples-to-string
      [[(URI. "http://example.com") :foaf:nick "granddad"]])
     "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"\n}")))
-
-(deftest limits
-  (is (equal-but-for-whitespace
-       (rdf-to-string
-        (limit
-         (select (map ? [:a :b])
-                 (solve (group [(? :a) :rdfs:label (? :b)])))
-         3))
-       "SELECT ?a ?b WHERE { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} LIMIT 3")))
-
 
 (defn declare-prefixes [query]
   (let [ns-string (str/join "\n"
@@ -362,7 +361,6 @@
                           "application/sparql-results+xml")]
     (parse-sparql-response-body body)))
 
-;;
 (defn update-store [post-fun sparql]
   ;; according to
   ;; https://www.w3.org/TR/2013/REC-sparql11-protocol-20130321/#update-operation
@@ -377,14 +375,6 @@
                 "application/sparql-update"
                 "text/*")
    true))
-
-#_
-(defn update-store [post-fn sparql]
-  (let [res (post-sparql post-fn
-                         (declare-prefixes sparql)
-                         "update" "application/sparql-update" "text/*")]
-    (if-not (= (:status res) 204)
-      (throw (Exception. (str "error updating: " res))))))
 
 #_
 (defn insert-triples [triples]
