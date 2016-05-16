@@ -201,6 +201,15 @@
 (defn equal-but-for-whitespace [a b]
   (= (collapse-whitespace a) (collapse-whitespace b)))
 
+(defn delete-prefixes [str]
+  (str/replace str #"(?m)^(PREFIX|BASE).*$"  ""))
+
+(defn equal-form
+  "For test assertions: compare arguments after removing PREFIX and BASE directives from each"
+  [a b]
+  (equal-but-for-whitespace (delete-prefixes a) (delete-prefixes b)))
+
+
 (deftest union-city-blues
   (binding [rdf-base-uri "http://f.com/"]
     (let [u (union (group [(u "a") (u "b") (u "c")])
@@ -345,7 +354,7 @@
                   [(? :a) :rdf:type :dct:Agent]
                   ))]
     (is (.contains s "PREFIX rdf:"))
-    (is (.contains s "?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" ."))))
+    (is (equal-form s "SELECT * WHERE {\n?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .\n?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
 
 (defn post-sparql [post-fn payload uri content-type accept]
   (post-fn (str fuseki-service-url uri)
