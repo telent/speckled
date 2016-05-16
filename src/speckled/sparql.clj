@@ -202,7 +202,8 @@
   (= (collapse-whitespace a) (collapse-whitespace b)))
 
 (defn delete-prefixes [str]
-  (str/replace str #"(?m)^(PREFIX|BASE).*$"  ""))
+  "For test assertions: strip PREFIX and BASE directives from string"
+  (str/replace str #"(?m)^(PREFIX|BASE).*\n+"  ""))
 
 (defn equal-form
   "For test assertions: compare arguments after removing PREFIX and BASE directives from each"
@@ -434,13 +435,16 @@
 
 
 (deftest test-construct-query
-  (let [sparql (limit
-                (construct (group [(? :n) :rdfs:label "hey"]
-                                  [(? :n) :foaf:familyName (? :name)])
-                           (solve (group [(? :n) (? :v) (? :name)])))
-
-                3)]
+  (let [sparql (construct
+                (group [(? :n) :rdfs:label "hey"]
+                       [(? :n) :foaf:familyName (? :name)])
+                (limit
+                 (solve (group [(? :n) (? :v) (? :name)]))
+                 3))]
     (is (equal-but-for-whitespace
-         (re-find #"(?s)CONSTRUCT \{.+\Z" (->string sparql))
-         "CONSTRUCT { ?n <http://www.w3.org/2000/01/rdf-schema#label> \"hey\" . ?n <http://xmlns.com/foaf/0.1/familyName> ?name} WHERE { ?n ?v ?name} LIMIT 3"
+         (delete-prefixes (->string sparql))
+         "CONSTRUCT {
+   ?n <http://www.w3.org/2000/01/rdf-schema#label> \"hey\" .
+   ?n <http://xmlns.com/foaf/0.1/familyName> ?name}
+WHERE { ?n ?v ?name} LIMIT 3"
          ))))
