@@ -273,7 +273,7 @@
   ([v g] (->Projection v g))
   ([g] (->Projection :* g)))
 
-(deftest rdf-projection
+(deftest projection-test
   (is (equal-but-for-whitespace
        (to-string-fragment
         (project (map ? [:n :ed :title])
@@ -314,9 +314,12 @@
 ;;  CONSTRUCT - return some new triples using the variables
 ;;  INSERT - modify the datastore to add new triples using the variables
 
-(defmulti rdf-to-query-form class)
-(defmethod rdf-to-query-form ::query-form [s] s)
-(defmethod rdf-to-query-form String [s] s)
+(derive ::query-form ::top-level-form)
+(derive ::update-form ::top-level-form)
+
+(defmulti rdf-to-top-level-form class)
+(defmethod rdf-to-top-level-form ::top-level-form [s] s)
+(defmethod rdf-to-top-level-form String [s] s)
 
 (deftype Select [solution-seq])
 (derive Select ::query-form)
@@ -341,8 +344,8 @@
 
 (defn select [soln-seq] (->Select soln-seq))
 
-(defmethod rdf-to-query-form ::soln-seq [s] (select s))
-(defmethod rdf-to-query-form ::graph [s] (select (rdf-to-soln-seq s)))
+(defmethod rdf-to-top-level-form ::soln-seq [s] (select s))
+(defmethod rdf-to-top-level-form ::graph [s] (select (rdf-to-soln-seq s)))
 
 
 (deftype Construction [template solution-seq])
@@ -392,7 +395,7 @@
 
 (defn ->string [sparql]
   (-> sparql
-      rdf-to-query-form
+      rdf-to-top-level-form
       to-string-fragment
       declare-prefixes))
 
