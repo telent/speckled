@@ -32,11 +32,13 @@ The primary entry point to convert a top level form into a string that can be se
 
     (require '[speckled.sparql :refer [->string group solve ?]])
     (->string
-        (solve
-         (group [(? :a)
-                 :rdfs:label
-                 "Bertrand Russell Peace Foundation"]
-                [(? :a) :rdf:type :dct:Agent] )))
+     (select
+      (project [(? :a)]
+               (solve
+                (group [(? :a)
+                        :rdfs:label
+                        "Bertrand Russell Peace Foundation"]
+                       [(? :a) :rdf:type :dct:Agent] )))))
     =>
     PREFIX owl: <http://www.w3.org/2002/07/owl#>
     PREFIX rdau: <http://rdaregistry.info/Elements/u/>
@@ -44,7 +46,40 @@ The primary entry point to convert a top level form into a string that can be se
     SELECT *  WHERE {
       ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
       ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}
-    
+
+This is the fully general form of a query.  Some points are worthy of note
+
+1. you can usually omit writing `solve` where its necessity can be
+inferred: any operator that requires a solution sequence will wrap its
+argument in one if it isn't already
+
+2. the `SELECT` clause in a SPARQL query serves dual duty: first as a
+solution equence modifier which narrows the result sequence by
+removing some of the variables from it, and second to indicate the
+form of the result to the SPARQL processor - that we want to know the
+values of the variables (as opposed to, e.g. whether a solution exists
+(`ASK`) or a new set of triples that use them (`CONSTRUCT`)).  In
+Speckled we separate these two roles: we use `project` for the
+"Projection" operator that narrows the solution sequence, and then we
+use `select` to indicate the result format.
+
+3. following on from point 2, you can omit `project` if you don't want
+to restrict the variables returned, and if you omit the operator to
+specify the top level form type (`select`, `construct`, `ask`,
+`insert` ...) then it will infer that you wanted a `SELECT`. So you
+could write
+
+    (->string
+        (group [(? :a)
+                :rdfs:label
+                "Bertrand Russell Peace Foundation"]
+               [(? :a) :rdf:type :dct:Agent] )))))
+
+to get
+
+    SELECT *  WHERE { ?a <http://www.w3.org/2000/01/rdf-schema#label> "Bertrand Russell Peace Foundation" . ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent> }
+
+or something, modulo whitespace changes, very much like it.
 
 ## Performing a query against the server
 
