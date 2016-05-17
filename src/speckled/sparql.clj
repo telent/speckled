@@ -164,40 +164,40 @@
           "<http://f.com/a> <http://f.com/b> <http://f.com/c>")
          "<http://f.com/a> <http://f.com/b> <http://f.com/c>" )))
 
-(defmulti rdf-to-string class)
+(defmulti to-string-fragment class)
 
 ;; groups
 
 (deftype Group [triples])
 (derive Group ::graph)
 (defn group [ & triples ] (->Group triples))
-(defmethod rdf-to-string Group [group]
-  (str "{\n" (str/join " .\n" (map rdf-to-string (.triples group)))
+(defmethod to-string-fragment Group [group]
+  (str "{\n" (str/join " .\n" (map to-string-fragment (.triples group)))
        "}\n"))
 
-(defmethod rdf-to-string String [s] s)
+(defmethod to-string-fragment String [s] s)
 
-(defmethod rdf-to-string (class []) [v]
+(defmethod to-string-fragment (class []) [v]
   (triple-to-string v))
 
 (deftest rdf-formatting
   (binding [rdf-base-uri "http://f.com/"
             rdf/prefixes (assoc rdf/prefixes "shlv" "http://booksh.lv/ns#")]
-    (is (= (rdf-to-string "{ ?n ?v ?o }") "{ ?n ?v ?o }"))
+    (is (= (to-string-fragment "{ ?n ?v ?o }") "{ ?n ?v ?o }"))
     (let [g (group [(u "a") (u "b") (u "c")])]
-      (is (= (rdf-to-string g)
+      (is (= (to-string-fragment g)
              "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c>}\n")))
     (let [g2 (group [(u "a") (u "b") (u "c")]
                     [:shlv:a :shlv:b (? :done)])]
-      (is (= (rdf-to-string g2)
+      (is (= (to-string-fragment g2)
              "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://booksh.lv/ns#a> <http://booksh.lv/ns#b> ?done}\n")))))
 
 (deftype Union [groups])
 (derive Union ::graph)
 (defn union [ & groups ] (->Union groups))
-(defmethod rdf-to-string Union [u]
+(defmethod to-string-fragment Union [u]
   (str "{ "
-       (str/join "\n    UNION\n" (map rdf-to-string (.groups u)))
+       (str/join "\n    UNION\n" (map to-string-fragment (.groups u)))
        " }"))
 
 (defn collapse-whitespace [s]
@@ -219,7 +219,7 @@
   (binding [rdf-base-uri "http://f.com/"]
     (let [u (union (group [(u "a") (u "b") (u "c")])
                    (group [(? :s) :rdf:a "foo"]))]
-      (is (= (collapse-whitespace (rdf-to-string u))
+      (is (= (collapse-whitespace (to-string-fragment u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))))
 
 ;; solve to find the values of variables appearing in a group
@@ -228,7 +228,7 @@
 (deftype SolutionSequence [group default-graphs named-graphs])
 (derive SolutionSequence ::soln-seq)
 
-(defmethod rdf-to-string SolutionSequence [s]
+(defmethod to-string-fragment SolutionSequence [s]
   (str
    (str/join
     (map (fn [iri] (str " FROM " (rdf/serialize-term iri) "\n"))
@@ -237,7 +237,7 @@
     (map (fn [iri] (str " FROM NAMED " (rdf/serialize-term iri) "\n"))
          (.named-graphs s)))
    " WHERE "
-   (rdf-to-string (.group s))))
+   (to-string-fragment (.group s))))
 
 
 (defn solve [group & [default-graphs named-graphs]]
@@ -248,10 +248,10 @@
   (let [g (group [(? :n) :foaf:copyOf (? :ed)]
                  [(? :n) :rdfs:label (? :title)])]
     (is (equal-but-for-whitespace
-         (rdf-to-string (solve g))
+         (to-string-fragment (solve g))
          "WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))
     (is (equal-but-for-whitespace
-         (rdf-to-string
+         (to-string-fragment
           (solve g [(u "http://booksh.lv/bnbgraph")]))
          "FROM <http://booksh.lv/bnbgraph>\n WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"
          ))))
@@ -261,17 +261,19 @@
 (deftype Projection [variables group])
 (derive Projection ::soln-seq)
 
-(defmethod rdf-to-string Projection [v]
+(defmethod to-string-fragment Projection [v]
   (let [variables (if (= (.variables v) :*)
                     "*"
                     (map rdf/serialize-term (.variables v)))]
     (str "SELECT " (str/join " " variables)
-         (rdf-to-string (.group v)))))
+         (to-string-fragment (.group v)))))
 
-(defn project [v g] (->Projection v g))
+(defn project
+  ([v g] (->Projection v g))
+  ([g] (->Projection :* g)))
 
 (deftest rdf-projection
-  (is (= (rdf-to-string
+  (is (= (to-string-fragment
           (project (map ? [:n :ed :title])
                   (solve
                    (group [(? :n) :foaf:copyOf (? :ed)]
@@ -290,13 +292,13 @@
 (defn limit [projection max]
   (->Limit (rdf-to-soln-seq projection) max))
 
-(defmethod rdf-to-string Limit [v]
-  (str (rdf-to-string (.proj v))
+(defmethod to-string-fragment Limit [v]
+  (str (to-string-fragment (.proj v))
        " LIMIT " (.limit v)))
 
 (deftest limits
   (is (equal-but-for-whitespace
-       (rdf-to-string
+       (to-string-fragment
         (limit
          (project (map ? [:a :b])
                  (solve (group [(? :a) :rdfs:label (? :b)])))
@@ -312,8 +314,8 @@
 
 (defmulti rdf-to-query-form class)
 (defmethod rdf-to-query-form ::query-form [s] s)
-(defmethod rdf-to-query-form ::soln-seq [s] (select s))
-(defmethod rdf-to-query-form ::graph [s] (select (rdf-to-soln-seq s)))
+(defmethod rdf-to-query-form ::soln-seq [s] (project s))
+(defmethod rdf-to-query-form ::graph [s] (project (rdf-to-soln-seq s)))
 (defmethod rdf-to-query-form String [s] s)
 
 (deftype Select [solution-seq])
@@ -322,12 +324,12 @@
 (defn has-projection? [expr]
   false)
 
-(defmethod rdf-to-string Select [v]
+(defmethod to-string-fragment Select [v]
   ;; do not add select * if the solution-seq already contains a projection
   (let [s (.solution-seq v)]
     (if (has-projection? s)
-      (rdf-to-string (.solution-seq v))
-      (str "SELECT * " (rdf-to-string (.solution-seq v))))))
+      (to-string-fragment (.solution-seq v))
+      (str "SELECT * " (to-string-fragment (.solution-seq v))))))
 
 (defn select [soln-seq] (->Select soln-seq))
 
@@ -336,16 +338,16 @@
 (deftype Construction [template solution-seq])
 (derive Construction ::query-form)
 
-(defmethod rdf-to-string Construction [v]
-  (str "CONSTRUCT " (rdf-to-string (.template v))
-       (rdf-to-string (.solution-seq v))))
+(defmethod to-string-fragment Construction [v]
+  (str "CONSTRUCT " (to-string-fragment (.template v))
+       (to-string-fragment (.solution-seq v))))
 
 (defn construct [template soln-seq] (->Construction template soln-seq))
 
 (deftest rdf-construction
   (binding [rdf/prefixes (assoc rdf/prefixes "shlv" "http://booksh.lv/ns#")]
     (is (equal-but-for-whitespace
-         (rdf-to-string
+         (to-string-fragment
           (construct (group [(? :n) :shlv:isA :shlv:book]
                             [(? :n) :shlv:edition (? :ed)]
                             [(? :n) :shlv:title (? :title)])
@@ -382,7 +384,7 @@
   (defn ->string [sparql]
     (-> sparql
         rdf-to-query-form
-        rdf-to-string
+        to-string-fragment
         declare-prefixes))
   (let [s (->string
            (group [(? :a)
