@@ -69,7 +69,7 @@ specify the top level form type (`select`, `construct`, `ask`,
 `insert` ...) then it will infer that you wanted a `SELECT`. So you
 could write
 
-    (->string
+     (->string
         (group [(? :a)
                 :rdfs:label
                 "Bertrand Russell Peace Foundation"]
@@ -77,7 +77,10 @@ could write
 
 to get
 
-    SELECT *  WHERE { ?a <http://www.w3.org/2000/01/rdf-schema#label> "Bertrand Russell Peace Foundation" . ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent> }
+     SELECT *  WHERE {
+       ?a <http://www.w3.org/2000/01/rdf-schema#label> "Bertrand Russell Peace Foundation" .
+       ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>
+     }
 
 or something, modulo whitespace changes, very much like it.
 
