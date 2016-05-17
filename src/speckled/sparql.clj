@@ -139,6 +139,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; sparql query generation
 
+;; variables and individual terms
+
 
 (deftype Variable [name])
 (defn ? [n] (->Variable n))
@@ -163,6 +165,8 @@
          "<http://f.com/a> <http://f.com/b> <http://f.com/c>" )))
 
 (defmulti rdf-to-string class)
+
+;; groups
 
 (deftype Group [triples])
 (derive Group ::graph)
@@ -218,6 +222,9 @@
       (is (= (collapse-whitespace (rdf-to-string u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))))
 
+;; solve to find the values of variables appearing in a group
+;;  => get solution sequence
+
 (deftype SolutionSequence [group default-graphs named-graphs])
 (derive SolutionSequence ::soln-seq)
 
@@ -249,9 +256,10 @@
          "FROM <http://booksh.lv/bnbgraph>\n WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"
          ))))
 
+;; Operations on solution sequences to filter/rearrange/transform them
 
 (deftype Projection [variables group])
-(derive Projection ::query-form)
+(derive Projection ::soln-seq)
 
 (defmethod rdf-to-string Projection [v]
   (let [variables (if (= (.variables v) :*)
@@ -260,16 +268,70 @@
     (str "SELECT " (str/join " " variables)
          (rdf-to-string (.group v)))))
 
-(defn select [v g] (->Projection v g))
+(defn project [v g] (->Projection v g))
 
 (deftest rdf-projection
   (is (= (rdf-to-string
-          (select (map ? [:n :ed :title])
+          (project (map ? [:n :ed :title])
                   (solve
                    (group [(? :n) :foaf:copyOf (? :ed)]
                           [(? :n) :rdfs:label (? :title)]))))
-         #_ "SELECT ?n ?ed ?title FROM <http://booksh.lv/bnbgrph> FROM <urn:x-arq:DefaultGraph> WHERE {\n?n <http://booksh.lv/ns#copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"
          "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n")))
+
+(defmulti rdf-to-soln-seq class)
+
+(defmethod rdf-to-soln-seq ::soln-seq [s] s)
+(defmethod rdf-to-soln-seq ::graph [s] (solve s))
+(defmethod rdf-to-soln-seq String [s] s)
+
+(deftype Limit [proj limit])
+(derive Limit ::soln-seq)
+
+(defn limit [projection max]
+  (->Limit (rdf-to-soln-seq projection) max))
+
+(defmethod rdf-to-string Limit [v]
+  (str (rdf-to-string (.proj v))
+       " LIMIT " (.limit v)))
+
+(deftest limits
+  (is (equal-but-for-whitespace
+       (rdf-to-string
+        (limit
+         (project (map ? [:a :b])
+                 (solve (group [(? :a) :rdfs:label (? :b)])))
+         3))
+       "SELECT ?a ?b WHERE { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} LIMIT 3")))
+
+;; Top-level forms: given a (possibly modified) solution sequence,
+;; create an entire sparql statement:
+;;  ASK - find out whether there were solutions
+;;  SELECT - tell me the matching values of the variables
+;;  CONSTRUCT - return some new triples using the variables
+;;  INSERT - modify the datastore to add new triples using the variables
+
+(defmulti rdf-to-query-form class)
+(defmethod rdf-to-query-form ::query-form [s] s)
+(defmethod rdf-to-query-form ::soln-seq [s] (select s))
+(defmethod rdf-to-query-form ::graph [s] (select (rdf-to-soln-seq s)))
+(defmethod rdf-to-query-form String [s] s)
+
+(deftype Select [solution-seq])
+(derive Select ::query-form)
+
+(defn has-projection? [expr]
+  false)
+
+(defmethod rdf-to-string Select [v]
+  ;; do not add select * if the solution-seq already contains a projection
+  (let [s (.solution-seq v)]
+    (if (has-projection? s)
+      (rdf-to-string (.solution-seq v))
+      (str "SELECT * " (rdf-to-string (.solution-seq v))))))
+
+(defn select [soln-seq] (->Select soln-seq))
+
+
 
 (deftype Construction [template solution-seq])
 (derive Construction ::query-form)
@@ -291,32 +353,6 @@
                       (group [(? :n) :shlv:copyOf (? :ed)]
                              [(? :n) :rdfs:label (? :title)]))))
          "CONSTRUCT {\n?n <http://booksh.lv/ns#isA> <http://booksh.lv/ns#book> .\n?n <http://booksh.lv/ns#edition> ?ed .\n?n <http://booksh.lv/ns#title> ?title}\n WHERE {\n?n <http://booksh.lv/ns#copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))))
-
-(defmulti rdf-to-query-form class)
-
-(defmethod rdf-to-query-form ::query-form [s] s)
-(defmethod rdf-to-query-form ::soln-seq [s] (select :* s))
-(defmethod rdf-to-query-form ::graph [s] (select :* (solve s)))
-(defmethod rdf-to-query-form String [s] s)
-
-(deftype Limit [proj limit])
-(derive Limit ::soln-seq)
-
-(defn limit [projection max]
-  (->Limit (rdf-to-query-form projection) max))
-
-(defmethod rdf-to-string Limit [v]
-  (str (rdf-to-string (.proj v))
-       " LIMIT " (.limit v)))
-
-(deftest limits
-  (is (equal-but-for-whitespace
-       (rdf-to-string
-        (limit
-         (select (map ? [:a :b])
-                 (solve (group [(? :a) :rdfs:label (? :b)])))
-         3))
-       "SELECT ?a ?b WHERE { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} LIMIT 3")))
 
 ;; maybe we could turn this into an Update with a ::update-form kind
 (defn triples-to-string [triples]
@@ -355,7 +391,12 @@
                   [(? :a) :rdf:type :dct:Agent]
                   ))]
     (is (.contains s "PREFIX rdf:"))
-    (is (equal-form s "SELECT * WHERE {\n?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .\n?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
+    (is (equal-but-for-whitespace
+         (delete-prefixes s)
+         "SELECT *
+WHERE {
+ ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
+ ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
 
 (defn post-sparql [post-fn payload uri content-type accept]
   (post-fn (str fuseki-service-url uri)
