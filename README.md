@@ -69,11 +69,14 @@ specify the top level form type (`select`, `construct`, `ask`,
 `insert` ...) then it will infer that you wanted a `SELECT`. So you
 could write
 
+```
      (->string
         (group [(? :a)
                 :rdfs:label
                 "Bertrand Russell Peace Foundation"]
                [(? :a) :rdf:type :dct:Agent] )))))
+
+```
 
 to get
 
