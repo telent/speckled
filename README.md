@@ -5,9 +5,30 @@
 
 Originally extracted from booksh.lv
 
-## Usage
+# Usage
 
-### Creating Sparql 
+## Creating Sparql 
+
+Speckled is a DSL for creating SPARQL queries.  The strcture of the
+language does not quite correspond to the sparql parse tree, but looks
+reasonably similar. We have
+
+* terms: literals, IRIs, variables
+* triples: (subject relation object) 
+* groups of triples (and groups of groups)
+* graph
+* solution: given a graph, some set of values for all the variables in that graph which match data in the data store
+* solution sequence: all the possible solutions for some graph
+* solution sequence modifiers, which filter, narrow or re-order the solution sequence
+* top level forms, which say what we want done with the solution sequence
+** SELECT - tell me the values
+** CONSTRUCT - make up some new triples
+** INSERT - make up some new triples and add them to the data store
+** etc
+
+We represent triples as vectors of three elements and everything else
+as nested structs for which there are convenience functions to write concisely.
+The primary entry point to convert a top level form into a string that can be sent to a SPARQL engine is `->string`
 
     (require '[speckled.sparql :refer [->string group solve ?]])
     (->string
@@ -15,10 +36,17 @@ Originally extracted from booksh.lv
          (group [(? :a)
                  :rdfs:label
                  "Bertrand Russell Peace Foundation"]
-                [(? :a) :rdf:type :dct:Agent] )
- 
+                [(? :a) :rdf:type :dct:Agent] )))
+    =>
+    PREFIX owl: <http://www.w3.org/2002/07/owl#>
+    PREFIX rdau: <http://rdaregistry.info/Elements/u/>
+    [... more prefix declarations omitted for brevity ...]
+    SELECT *  WHERE {
+      ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
+      ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}
+    
 
-### Performing a query against the server
+## Performing a query against the server
 
     (sq/query (comp http/post :body) "http://localhost:3030/ds/"
               "SELECT  ?p ?o WHERE { </foo/2> ?p ?o }")
