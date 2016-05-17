@@ -243,6 +243,12 @@
 (defn solve [group & [default-graphs named-graphs]]
   (->SolutionSequence group default-graphs named-graphs))
 
+(defmulti rdf-to-soln-seq class)
+
+(defmethod rdf-to-soln-seq ::soln-seq [s] s)
+(defmethod rdf-to-soln-seq ::graph [s] (solve s))
+(defmethod rdf-to-soln-seq String [s] s)
+
 
 (deftest rdf-solve
   (let [g (group [(? :n) :foaf:copyOf (? :ed)]
@@ -270,8 +276,8 @@
          (to-string-fragment (.soln-seq v)))))
 
 (defn project
-  ([v g] (->Projection v g))
-  ([g] (->Projection :* g)))
+  ([v s] (->Projection v (rdf-to-soln-seq s)))
+  ([s] (->Projection :* (rdf-to-soln-seq s))))
 
 (deftest projection-test
   (is (equal-but-for-whitespace
@@ -280,13 +286,15 @@
                  (solve
                   (group [(? :n) :foaf:copyOf (? :ed)]
                          [(? :n) :rdfs:label (? :title)]))))
+       "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))
+    (is (equal-but-for-whitespace
+       (to-string-fragment
+        (project (map ? [:n :ed :title])
+                 ;; implicit solve
+                 (group [(? :n) :foaf:copyOf (? :ed)]
+                        [(? :n) :rdfs:label (? :title)])))
        "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n")))
 
-(defmulti rdf-to-soln-seq class)
-
-(defmethod rdf-to-soln-seq ::soln-seq [s] s)
-(defmethod rdf-to-soln-seq ::graph [s] (solve s))
-(defmethod rdf-to-soln-seq String [s] s)
 
 (deftype Limit [soln-seq limit])
 (derive Limit ::modified-soln-seq)
@@ -346,7 +354,6 @@
 
 (defmethod rdf-to-top-level-form ::soln-seq [s] (select s))
 (defmethod rdf-to-top-level-form ::graph [s] (select (rdf-to-soln-seq s)))
-
 
 (deftype Construction [template solution-seq])
 (derive Construction ::query-form)
@@ -429,7 +436,23 @@ WHERE {
     (is (.contains s "PREFIX rdf:"))
     (is (equal-but-for-whitespace
          (delete-prefixes s)
-         "SELECT ?a
+         "SELECT ?a WHERE
+{
+ ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
+ ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
+
+
+(deftest implicit-select-test
+  (let [s (->string
+           (group [(? :a)
+                   :rdfs:label
+                   "Bertrand Russell Peace Foundation"]
+                  [(? :a) :rdf:type :dct:Agent]
+                  ))]
+    (is (.contains s "PREFIX rdf:"))
+    (is (equal-but-for-whitespace
+         (delete-prefixes s)
+         "SELECT * WHERE
 {
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
  ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
