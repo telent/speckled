@@ -265,7 +265,7 @@
   (let [variables (if (= (.variables v) :*)
                     "*"
                     (map rdf/serialize-term (.variables v)))]
-    (str "SELECT " (str/join " " variables)
+    (str "SELECT " (str/join " " variables) " "
          (to-string-fragment (.group v)))))
 
 (defn project
