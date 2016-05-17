@@ -15,19 +15,19 @@ reasonably similar. We have
 
 * terms: literals, IRIs, variables
 * triples: (subject relation object) 
-* groups of triples (and groups of groups)
-* graph
-* solution: given a graph, some set of values for all the variables in that graph which match data in the data store
+* graphs: groups of triples (and groups of groups)
+* solution: given a graph with some variables, a set of values for all the variables which make the graph match data in the data store
 * solution sequence: all the possible solutions for some graph
-* solution sequence modifiers, which filter, narrow or re-order the solution sequence
+* solution sequence modifiers: filter, narrow or re-order the solution sequence
 * top level forms, which say what we want done with the solution sequence
+
 ** SELECT - tell me the values
 ** CONSTRUCT - make up some new triples
 ** INSERT - make up some new triples and add them to the data store
 ** etc
 
 We represent triples as vectors of three elements and everything else
-as nested structs for which there are convenience functions to write concisely.
+as nested structs: convenience functions are provided to write them concisely.
 The primary entry point to convert a top level form into a string that can be sent to a SPARQL engine is `->string`
 
     (require '[speckled.sparql :refer [->string group solve ?]])
