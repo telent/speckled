@@ -369,20 +369,22 @@
                              [(? :n) :rdfs:label (? :title)]))))
          "CONSTRUCT {\n?n <http://booksh.lv/ns#isA> <http://booksh.lv/ns#book> .\n?n <http://booksh.lv/ns#edition> ?ed .\n?n <http://booksh.lv/ns#title> ?title}\n WHERE {\n?n <http://booksh.lv/ns#copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))))
 
-;; maybe we could turn this into an Update with a ::update-form kind
-(defn triples-to-string [triples]
-  (str
-   "INSERT DATA { \n"
-   (str/join " . \n"
-             (map triple-to-string triples))
-   "\n}"))
+(deftype Insert [graph solution-seq])
+(derive Insert ::update-form)
 
-(deftest triples-to-string-test
-  (is
-   (equal-but-for-whitespace
-    (triples-to-string
-     [[(URI. "http://example.com") :foaf:nick "granddad"]])
-    "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"\n}")))
+(defmethod to-string-fragment Insert [v]
+  (if-let [s (.solution-seq v)]
+    (str "INSERT "
+         (to-string-fragment (.graph v))
+         (to-string-fragment (rdf-to-soln-seq s)))
+    (str "INSERT DATA "
+         (to-string-fragment (.graph v)))))
+
+(defn insert
+  ([graph soln-seq] (->Insert graph soln-seq))
+  ([graph] (->Insert graph nil)))
+
+;; prepend prefix declarations
 
 (defn declare-prefixes [query]
   (let [ns-string (str/join "\n"
@@ -432,6 +434,23 @@ WHERE {
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
  ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
 
+(deftest insert-test
+  (is
+   (equal-form
+    (->string
+     (insert
+      (group [(URI. "http://example.com") :foaf:nick "granddad"])
+      (solve (group [(? :a) :rdfs:label (? :b)]))))
+    "INSERT { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"} WHERE  { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} "))
+  (is
+   (equal-form
+    (->string
+     (insert
+      (group [(URI. "http://example.com") :foaf:nick "granddad"])))
+    "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"}")))
+
+;;; network stuffz
+
 (defn post-sparql [post-fn payload uri content-type accept]
   (post-fn (str fuseki-service-url uri)
            {:content-type content-type
@@ -460,44 +479,6 @@ WHERE {
                 "application/sparql-update"
                 "text/*")
    true))
-
-#_
-(defn insert-triples [triples]
-  (update-store (triples-to-string triples)))
-
-#_(defn random-string []
-  "JKHgjkhgkjH")
-#_
-(defmacro with-test-rdf-root [ & body]
-  (let [prefix (str "http://test.booksh.lv/res/" (random-string) "/")]
-    `(binding [rdf-base-uri ~prefix]
-       (try
-         ~@body
-         (finally
-           (update-store
-            (str "DELETE { ?n ?v ?o } where { "
-                 "?n ?v ?o . "
-                 "filter(regex(str(?n), \"^http://test.booksh.lv/\") || "
-                 "       regex(str(?o), \"^http://test.booksh.lv/\")) . "
-                 "}")))))))
-#_
-(deftest test-data-test
-  ;; insert some test triples, test they're present
-  (with-fixture-db
-    (with-test-rdf-root
-      (let [s (u "shelved/1")
-            triples
-            [[:bnb:017048941 :shlv:shelvedEvent s]
-             [s :shlv:library (u "libraries/10")]
-             [s :shlv:shelf "top shelf living room"]
-             [s :shlv:shelvedAt (java.util.Date.)]]]
-        (insert-triples triples)
-        (let [q (str "select ?v ?o FROM <urn:x-arq:DefaultGraph> FROM <http://booksh.lv/bnbgraph> { " (rdf/serialize-term s) " ?v ?o . }")
-              during (query q)]
-          (is (= 3 (count during))))))
-    (is (empty?
-         (query  "SELECT ?n ?v ?o { ?n ?v ?o . filter(regex(str(?n), \"^http://test.booksh.lv/\") || regex(str(?n), \"^http://test.booksh.lv/\")) } LIMIT 2")))))
-
 
 (defn query-for-graph [post-fn sparql]
   (let [response (post-sparql
