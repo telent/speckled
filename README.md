@@ -21,10 +21,10 @@ reasonably similar. We have
 * solution sequence modifiers: filter, narrow or re-order the solution sequence
 * top level forms, which say what we want done with the solution sequence
 
-** SELECT - tell me the values
-** CONSTRUCT - make up some new triples
-** INSERT - make up some new triples and add them to the data store
-** etc
+  * SELECT - tell me the values
+  * CONSTRUCT - make up some new triples
+  * INSERT - make up some new triples and add them to the data store
+  * etc
 
 We represent triples as vectors of three elements and everything else
 as nested structs: convenience functions are provided to write them concisely.
