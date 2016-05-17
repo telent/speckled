@@ -381,12 +381,13 @@
          "BASE " (rdf/serialize-term (u rdf/rdf-base-uri)) "\n\n"
          query)))
 
-(with-test
-  (defn ->string [sparql]
-    (-> sparql
-        rdf-to-query-form
-        to-string-fragment
-        declare-prefixes))
+(defn ->string [sparql]
+  (-> sparql
+      rdf-to-query-form
+      to-string-fragment
+      declare-prefixes))
+
+(deftest select-test
   (let [s (->string
            (group [(? :a)
                    :rdfs:label
@@ -398,6 +399,24 @@
          (delete-prefixes s)
          "SELECT *
 WHERE {
+ ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
+ ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
+
+(deftest project-and-select-test
+  (let [s (->string
+           (select
+            (project
+             [(? :a)]
+             (group [(? :a)
+                     :rdfs:label
+                     "Bertrand Russell Peace Foundation"]
+                    [(? :a) :rdf:type :dct:Agent]
+                    ))))]
+    (is (.contains s "PREFIX rdf:"))
+    (is (equal-but-for-whitespace
+         (delete-prefixes s)
+         "SELECT ?a
+{
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
  ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
 
