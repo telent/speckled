@@ -258,7 +258,8 @@
 
 ;; Operations on solution sequences to filter/rearrange/transform them
 
-(deftype Projection [variables group])
+(deftype Projection [variables soln-seq])
+(derive ::modified-soln-seq ::soln-seq)
 (derive Projection ::soln-seq)
 
 (defmethod to-string-fragment Projection [v]
@@ -266,7 +267,7 @@
                     "*"
                     (map rdf/serialize-term (.variables v)))]
     (str "SELECT " (str/join " " variables) " "
-         (to-string-fragment (.group v)))))
+         (to-string-fragment (.soln-seq v)))))
 
 (defn project
   ([v g] (->Projection v g))
@@ -287,14 +288,14 @@
 (defmethod rdf-to-soln-seq ::graph [s] (solve s))
 (defmethod rdf-to-soln-seq String [s] s)
 
-(deftype Limit [proj limit])
-(derive Limit ::soln-seq)
+(deftype Limit [soln-seq limit])
+(derive Limit ::modified-soln-seq)
 
 (defn limit [projection max]
   (->Limit (rdf-to-soln-seq projection) max))
 
 (defmethod to-string-fragment Limit [v]
-  (str (to-string-fragment (.proj v))
+  (str (to-string-fragment (.soln-seq v))
        " LIMIT " (.limit v)))
 
 (deftest limits
@@ -315,15 +316,21 @@
 
 (defmulti rdf-to-query-form class)
 (defmethod rdf-to-query-form ::query-form [s] s)
-(defmethod rdf-to-query-form ::soln-seq [s] (project s))
-(defmethod rdf-to-query-form ::graph [s] (project (rdf-to-soln-seq s)))
 (defmethod rdf-to-query-form String [s] s)
 
 (deftype Select [solution-seq])
 (derive Select ::query-form)
 
-(defn has-projection? [expr]
-  false)
+(defn has-projection? [soln-seq]
+  (let [c (class soln-seq)]
+    (or (isa? c Projection)
+        (and (isa? c ::modified-soln-seq)
+             (has-projection? (.soln-seq soln-seq))))))
+
+(deftest has-projection-test
+  (is (has-projection? (project [] (solve [[:a :b :c]]))))
+  (is (has-projection? (limit (project [] (solve [[:a :b :c]])) 5)))
+  (is (not (has-projection? (solve [[:a :b :c]])))))
 
 (defmethod to-string-fragment Select [v]
   ;; do not add select * if the solution-seq already contains a projection
@@ -334,6 +341,8 @@
 
 (defn select [soln-seq] (->Select soln-seq))
 
+(defmethod rdf-to-query-form ::soln-seq [s] (select s))
+(defmethod rdf-to-query-form ::graph [s] (select (rdf-to-soln-seq s)))
 
 
 (deftype Construction [template solution-seq])
