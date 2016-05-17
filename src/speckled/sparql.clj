@@ -273,12 +273,13 @@
   ([g] (->Projection :* g)))
 
 (deftest rdf-projection
-  (is (= (to-string-fragment
-          (project (map ? [:n :ed :title])
-                  (solve
-                   (group [(? :n) :foaf:copyOf (? :ed)]
-                          [(? :n) :rdfs:label (? :title)]))))
-         "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n")))
+  (is (equal-but-for-whitespace
+       (to-string-fragment
+        (project (map ? [:n :ed :title])
+                 (solve
+                  (group [(? :n) :foaf:copyOf (? :ed)]
+                         [(? :n) :rdfs:label (? :title)]))))
+       "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n")))
 
 (defmulti rdf-to-soln-seq class)
 
