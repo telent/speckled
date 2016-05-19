@@ -3,7 +3,11 @@
 * SPARQL DSL
 * network code for talking to SPARQL endpoint
 
-Originally extracted from booksh.lv
+Status as of June 2016: under active (if slow) development,
+pre-pre-Alpha, APIs will change probably without notice.  Hopefully
+there is enough here to illustrate the direction in which we think
+we're going, but there are significant gaps which I will probably only
+get to when I actually need the functionality.
 
 # SPARQL DSL
 
@@ -44,7 +48,7 @@ SPARQL grammar but takes some liberties in the interests of
 pragmatism/conciseness/convenience.  From the inside out:
 
 
-### terms: literals, IRIs, variables
+### Terms: literals, IRIs, variables
 
 - Literals are represented as strings (no support for language selection yet)
 
@@ -54,13 +58,16 @@ pragmatism/conciseness/convenience.  From the inside out:
 
 - Variables are represented as `Variable` objects.  You can create them with the `?` function 
 
-### triples
+### Triples
 
 A triple is a vector of three terms: [subject relation object]
 
-### graphs: groups of triples (and groups of groups)
+### Graphs: groups of triples (and groups of groups)
 
-### solution, solution sequence
+Speckled presently supports groups of groups and unions of groups:
+more composition operations will be added as I need them.
+
+### Solution, solution sequence
 
 Given a graph with some variables, a solution is some set of values
 for each of the variables which cause make the graph match data in the data
@@ -71,6 +78,29 @@ A solution sequence is a collection of all the possible solutions for some graph
 ### solution sequence modifiers
 
 Filter, narrow or re-order the solution sequence using operators like `project` (equates to SPARQL `SELECT`), `distinct`, `limit` etc
+
+#### So what's this `project` thing for, then?
+
+The `SELECT` clause in a SPARQL query serves dual duty
+
+* first as a solution sequence modifier which narrows the result
+sequence by removing some of the variables from it (in relational
+algebra we would describe this as a "projection" or "restriction"),
+
+* and second to indicate the form of the result to the SPARQL
+processor - that we want to know the values of the variables (as
+opposed to, e.g. whether a solution exists (`ASK`) or a new set of
+triples that use them (`CONSTRUCT`)).
+
+In Speckled we separate these two roles: we use `project` for the
+"Projection" operator that narrows the solution sequence, and then we
+use `select` to indicate the result format.
+
+Speckled is not dogmatic about making you write `project` and `select`
+explicitly in your queries if it can figure out that it needed either
+or both of them (see "Convenience shortcuts" below), but you will
+probably have an easier ride if your mental model embraces this
+distinction instead of treating it as magic :-)
 
 ### Top level forms
 
@@ -87,22 +117,11 @@ These say what we want done with the solution sequence.  In SPARQL these are
 inferred: any operator that requires a solution sequence will wrap its
 argument in one if it isn't already
 
-2. the `SELECT` clause in a SPARQL query serves dual duty: first as a
-solution sequence modifier which narrows the result sequence by
-removing some of the variables from it (in relational algebra we would
-describe this as a "projection" or "restriction"), and second to
-indicate the form of the result to the SPARQL processor - that we want
-to know the values of the variables (as opposed to, e.g. whether a
-solution exists (`ASK`) or a new set of triples that use them
-(`CONSTRUCT`)).  In Speckled we separate these two roles: we use
-`project` for the "Projection" operator that narrows the solution
-sequence, and then we use `select` to indicate the result format.
-
-3. following on from point 2, you can omit `project` if you don't want
-to restrict the variables returned, and if you omit the operator to
-specify the top level form type (`select`, `construct`, `ask`,
-`insert` ...) then it will assume that you wanted a `SELECT`. So you
-can write simple queries much more concisely: e.g.
+2. you can omit `project` if you don't want to restrict the variables
+returned, and if you omit the operator to specify the top level form
+type (`select`, `construct`, `ask`, `insert` ...) then it will assume
+that you wanted a `SELECT`. So you can write simple queries much more
+concisely: e.g.
 
 ```
      (->string
