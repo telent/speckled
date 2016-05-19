@@ -1,4 +1,4 @@
-(ns speckled.sparql
+(ns speckled.dsl
   (:import [org.apache.commons.codec.net URLCodec]
            [java.text SimpleDateFormat]
            [java.net URL URI])
@@ -11,24 +11,27 @@
   (:use [clojure.data.zip.xml :only (attr text xml-> xml1-> )]))
 
 
-;; sparql query generation
+;;;; SPARQL query generation
 
-;; variables and individual terms
+;;;; We expect this ns will generally be used with `:refer :all`, so
+;;;; it's important to keep vars private unless they form part of the API
 
+
+;;; Variables and individual terms
 
 (deftype Variable [name])
 (defn ? [n] (->Variable n))
 (defmethod rdf/serialize-term Variable [v] (str "?" (name (.name v))))
 
-(deftest serialize-variable
+(deftest ^{:private true} serialize-variable
   (is (= (rdf/serialize-term (? :foo)) "?foo")))
 
-(defn triple-to-string [triple]
-  (if (string? triple)
-    triple
-    (str/join " " (map rdf/serialize-term triple))))
+(with-test
+  (defn- triple-to-string [triple]
+    (if (string? triple)
+      triple
+      (str/join " " (map rdf/serialize-term triple))))
 
-(deftest triple-to-string-test
   (binding [rdf-base-uri "http://f.com/"]
     (is (= (triple-to-string [(u "a")
                               (u "b")
@@ -38,7 +41,7 @@
           "<http://f.com/a> <http://f.com/b> <http://f.com/c>")
          "<http://f.com/a> <http://f.com/b> <http://f.com/c>" )))
 
-(defmulti to-string-fragment class)
+(defmulti ^{:private true} to-string-fragment class)
 
 ;; groups
 
@@ -54,7 +57,7 @@
 (defmethod to-string-fragment (class []) [v]
   (triple-to-string v))
 
-(deftest rdf-formatting
+(deftest ^{:private true} rdf-formatting
   (binding [rdf-base-uri "http://f.com/"
             rdf/prefixes (assoc rdf/prefixes "shlv" "http://booksh.lv/ns#")]
     (is (= (to-string-fragment "{ ?n ?v ?o }") "{ ?n ?v ?o }"))
@@ -74,22 +77,22 @@
        (str/join "\n    UNION\n" (map to-string-fragment (.groups u)))
        " }"))
 
-(defn collapse-whitespace [s]
+(defn- collapse-whitespace [s]
   (str/trim (str/replace s #"\s+" " ")))
-(defn equal-but-for-whitespace [a b]
+(defn- equal-but-for-whitespace [a b]
   (= (collapse-whitespace a) (collapse-whitespace b)))
 
-(defn delete-prefixes [str]
+(defn- delete-prefixes [str]
   "For test assertions: strip PREFIX and BASE directives from string"
   (str/replace str #"(?m)^(PREFIX|BASE).*\n+"  ""))
 
-(defn equal-form
+(defn- equal-form
   "For test assertions: compare arguments after removing PREFIX and BASE directives from each"
   [a b]
   (equal-but-for-whitespace (delete-prefixes a) (delete-prefixes b)))
 
 
-(deftest union-city-blues
+(deftest ^{:private true} union-city-blues
   (binding [rdf-base-uri "http://f.com/"]
     (let [u (union (group [(u "a") (u "b") (u "c")])
                    (group [(? :s) :rdf:a "foo"]))]
@@ -117,14 +120,14 @@
 (defn solve [group & [default-graphs named-graphs]]
   (->SolutionSequence group default-graphs named-graphs))
 
-(defmulti rdf-to-soln-seq class)
+(defmulti ^{:private true} rdf-to-soln-seq class)
 
 (defmethod rdf-to-soln-seq ::soln-seq [s] s)
 (defmethod rdf-to-soln-seq ::graph [s] (solve s))
 (defmethod rdf-to-soln-seq String [s] s)
 
 
-(deftest rdf-solve
+(deftest ^{:private true} rdf-solve
   (let [g (group [(? :n) :foaf:copyOf (? :ed)]
                  [(? :n) :rdfs:label (? :title)])]
     (is (equal-but-for-whitespace
@@ -153,7 +156,7 @@
   ([v s] (->Projection v (rdf-to-soln-seq s)))
   ([s] (->Projection :* (rdf-to-soln-seq s))))
 
-(deftest projection-test
+(deftest ^{:private true} projection-test
   (is (equal-but-for-whitespace
        (to-string-fragment
         (project (map ? [:n :ed :title])
@@ -180,7 +183,7 @@
   (str (to-string-fragment (.soln-seq v))
        " LIMIT " (.limit v)))
 
-(deftest limits
+(deftest ^{:private true} limits
   (is (equal-but-for-whitespace
        (to-string-fragment
         (limit
@@ -199,20 +202,19 @@
 (derive ::query-form ::top-level-form)
 (derive ::update-form ::top-level-form)
 
-(defmulti rdf-to-top-level-form class)
+(defmulti ^{:private true} rdf-to-top-level-form class)
 (defmethod rdf-to-top-level-form ::top-level-form [s] s)
 (defmethod rdf-to-top-level-form String [s] s)
 
 (deftype Select [solution-seq])
 (derive Select ::query-form)
 
-(defn has-projection? [soln-seq]
-  (let [c (class soln-seq)]
-    (or (isa? c Projection)
-        (and (isa? c ::modified-soln-seq)
-             (has-projection? (.soln-seq soln-seq))))))
-
-(deftest has-projection-test
+(with-test
+  (defn- has-projection? [soln-seq]
+    (let [c (class soln-seq)]
+      (or (isa? c Projection)
+          (and (isa? c ::modified-soln-seq)
+               (has-projection? (.soln-seq soln-seq))))))
   (is (has-projection? (project [] (solve [[:a :b :c]]))))
   (is (has-projection? (limit (project [] (solve [[:a :b :c]])) 5)))
   (is (not (has-projection? (solve [[:a :b :c]])))))
@@ -238,7 +240,7 @@
 
 (defn construct [template soln-seq] (->Construction template soln-seq))
 
-(deftest rdf-construction
+(deftest ^{:private true} rdf-construction
   (binding [rdf/prefixes (assoc rdf/prefixes "shlv" "http://booksh.lv/ns#")]
     (is (equal-but-for-whitespace
          (to-string-fragment
@@ -267,7 +269,7 @@
 
 ;; prepend prefix declarations
 
-(defn declare-prefixes [query]
+(defn- declare-prefixes [query]
   (let [ns-string (str/join "\n"
                             (map (fn [[k v]] (str "PREFIX " (name k) ": "
                                                   (rdf/serialize-term (u v))))
@@ -282,7 +284,7 @@
       to-string-fragment
       declare-prefixes))
 
-(deftest select-test
+(deftest ^{:private true} select-test
   (let [s (->string
            (group [(? :a)
                    :rdfs:label
@@ -297,7 +299,7 @@ WHERE {
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
  ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
 
-(deftest project-and-select-test
+(deftest ^{:private true} project-and-select-test
   (let [s (->string
            (select
             (project
@@ -316,7 +318,7 @@ WHERE {
  ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
 
 
-(deftest implicit-select-test
+(deftest ^{:private true} implicit-select-test
   (let [s (->string
            (group [(? :a)
                    :rdfs:label
@@ -331,7 +333,7 @@ WHERE {
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
  ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}\n"))))
 
-(deftest insert-test
+(deftest ^{:private true} insert-test
   (is
    (equal-form
     (->string
@@ -346,7 +348,7 @@ WHERE {
       (group [(URI. "http://example.com") :foaf:nick "granddad"])))
     "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"}")))
 
-(deftest test-construct-query
+(deftest ^{:private true} test-construct-query
   (let [sparql (construct
                 (group [(? :n) :rdfs:label "hey"]
                        [(? :n) :foaf:familyName (? :name)])
