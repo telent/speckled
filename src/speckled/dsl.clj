@@ -99,6 +99,26 @@
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))))
 
+(deftype Binding [variable value group])
+(derive Binding ::graph)
+(defn bind [[variable value] group]
+  (->Binding variable value group))
+
+(defmethod to-string-fragment Binding [b]
+  (str (to-string-fragment (.group b))
+       " BIND("
+       (rdf/serialize-term (.value b))
+       " AS " (rdf/serialize-term (.variable b))
+       ")\n"))
+
+(deftest ^{:private true} bind-us-together
+  (binding [rdf-base-uri "http://f.com/"]
+    (let [b (bind [(? :foo ) "19281"]
+                  (group [(? :s) :rdf:a "foo"]))]
+      (is (= (collapse-whitespace (to-string-fragment b))
+             "{ ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo)")))))
+
+
 ;; solve to find the values of variables appearing in a group
 ;;  => get solution sequence
 
