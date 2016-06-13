@@ -99,24 +99,36 @@
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))))
 
+
+;; "The BIND form allows a value to be assigned to a variable from a
+;; basic graph pattern or property path expression. Use of BIND ends
+;; the preceding basic graph pattern."
+
+;; To make the scope a bit clearer and a bit less dependent on textual
+;; proximity, we say that the BGP relevant to our Binding construct
+;; is a property of the construct not just whatever happens to have
+;; gone before.
+
 (deftype Binding [variable value group])
 (derive Binding ::graph)
 (defn bind [[variable value] group]
   (->Binding variable value group))
 
 (defmethod to-string-fragment Binding [b]
-  (str (to-string-fragment (.group b))
+  (str "{ " (to-string-fragment (.group b))
        " BIND("
        (rdf/serialize-term (.value b))
        " AS " (rdf/serialize-term (.variable b))
-       ")\n"))
+       ")\n}\n"))
 
 (deftest ^{:private true} bind-us-together
   (binding [rdf-base-uri "http://f.com/"]
     (let [b (bind [(? :foo ) "19281"]
                   (group [(? :s) :rdf:a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment b))
-             "{ ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo)")))))
+             ;; an answer without the inner { } would be just as acceptable
+             ;; here, fwiw
+             "{ { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo) }")))))
 
 
 ;; solve to find the values of variables appearing in a group

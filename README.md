@@ -64,8 +64,20 @@ A triple is a vector of three terms: [subject relation object]
 
 ### Graphs: groups of triples (and groups of groups)
 
-Speckled presently supports groups of groups and unions of groups:
-more composition operations will be added as I need them.
+Speckled presently supports
+
+* group graph patterns:
+  https://www.w3.org/TR/sparql11-query/#GroupPatterns
+
+* `UNION` for unions of groups:
+  https://www.w3.org/TR/sparql11-query/#alternatives
+
+* `BIND` for binding - augment the variables in a graph with a new
+  variable whose value is derived from them:
+  https://www.w3.org/TR/sparql11-query/#bind
+
+
+More composition operations will be added as I need them.
 
 ### Solution, solution sequence
 
