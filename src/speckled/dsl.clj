@@ -60,6 +60,7 @@
 
 (deftest ^{:private true} express-yourself
   (is (= (stringize-expr '7) "7"))
+  (is (= (stringize-expr '?foo) "?foo"))
 
   ;; variadic inline op
   (is (= (stringize-expr '(+ 1 2 3)) "(((1) + 2) + 3)"))
