@@ -34,6 +34,46 @@
 (defmethod to-string-fragment String [s] s)
 
 
+;;; expressions (for filter, bind, and rename operations)
+
+(deftype Expr [term])
+
+(defn eval [term] (->Expr term))
+
+(def inline-operators (set '(+ - * /)))
+
+(defn stringize-expr [term]
+  (cond
+    (seq? term)
+    (let [[op & args] term]
+      (if (contains? inline-operators op)
+        ;; (+ a b c d) => "((((a) + b) + c) + d)"
+        (reduce (fn [e r] (str "(" e " " op " " (stringize-expr r) ")"))
+                (str "(" (stringize-expr (first args)) ")")
+                (rest args))
+        (str op "(" (str/join ", " (map stringize-expr args)) ")")))
+    :else
+    (str term)))
+
+(defmethod to-string-fragment Expr [term]
+  (stringize-expr term))
+
+(deftest ^{:private true} express-yourself
+  (is (= (stringize-expr '7) "7"))
+
+  ;; variadic inline op
+  (is (= (stringize-expr '(+ 1 2 3)) "(((1) + 2) + 3)"))
+  (is (= (stringize-expr '(+ 1 2 3 17)) "((((1) + 2) + 3) + 17)"))
+
+  ;; nested operations
+  (is (= (stringize-expr '(+ 1 (- 2 3) 4)) "(((1) + ((2) - 3)) + 4)"))
+
+  ;; function call
+  (is (= (stringize-expr '(fn 6 7 8)) "fn(6, 7, 8)"))
+  (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, ((7) + 7), 8)"))
+  )
+
+
 ;;; triples
 
 (with-test
