@@ -26,6 +26,16 @@
 (deftest ^{:private true} serialize-variable
   (is (= (rdf/serialize-term (? :foo)) "?foo")))
 
+
+;;; almost everything past this point responds to to-string-fragment
+
+(defmulti ^{:private true} to-string-fragment class)
+
+(defmethod to-string-fragment String [s] s)
+
+
+;;; triples
+
 (with-test
   (defn- triple-to-string [triple]
     (if (string? triple)
@@ -41,7 +51,10 @@
           "<http://f.com/a> <http://f.com/b> <http://f.com/c>")
          "<http://f.com/a> <http://f.com/b> <http://f.com/c>" )))
 
-(defmulti ^{:private true} to-string-fragment class)
+
+(defmethod to-string-fragment (class []) [v]
+  (triple-to-string v))
+
 
 ;; groups
 
@@ -51,11 +64,6 @@
 (defmethod to-string-fragment Group [group]
   (str "{\n" (str/join " .\n" (map to-string-fragment (.triples group)))
        "}\n"))
-
-(defmethod to-string-fragment String [s] s)
-
-(defmethod to-string-fragment (class []) [v]
-  (triple-to-string v))
 
 (deftest ^{:private true} rdf-formatting
   (binding [rdf-base-uri "http://f.com/"
