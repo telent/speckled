@@ -55,10 +55,7 @@
                 (map stringize-expr args))
         (str op "(" (str/join ", " (map stringize-expr args)) ")")))
     :else
-    (str term)))
-
-(defmethod to-string-fragment Expr [term]
-  (stringize-expr term))
+    (pr-str term)))
 
 (deftest ^{:private true} express-yourself
   (is (= (stringize-expr '7) "7"))
@@ -75,6 +72,9 @@
   (is (= (stringize-expr '(fn 6 7 8)) "fn(6, 7, 8)"))
   (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, (7 + 7), 8)"))
   )
+
+(defmethod to-string-fragment Expr [e]
+  (stringize-expr (.term e)))
 
 
 ;;; triples
@@ -120,6 +120,7 @@
       (is (= (to-string-fragment g2)
              "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://booksh.lv/ns#a> <http://booksh.lv/ns#b> ?done}\n")))))
 
+
 (deftype Union [groups])
 (derive Union ::graph)
 (defn union [ & groups ] (->Union groups))
@@ -163,17 +164,21 @@
 (deftype Binding [variable value group])
 (derive Binding ::graph)
 (defn bind [[variable value] group]
-  (->Binding variable value group))
+  (->Binding variable (->Expr value) group))
 
 (defmethod to-string-fragment Binding [b]
   (str "{ " (to-string-fragment (.group b))
        " BIND("
-       (rdf/serialize-term (.value b))
+       (to-string-fragment (.value b))
        " AS " (rdf/serialize-term (.variable b))
        ")\n}\n"))
 
 (deftest ^{:private true} bind-us-together
   (binding [rdf-base-uri "http://f.com/"]
+    (let [b (bind [(? :foo) '(concat (* (random) 2) ?s)]
+                  (group [(? :s) :rdf:a "foo"]))]
+      (is (= (to-string-fragment b)
+             "{ {\n?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"}\n BIND(concat((random() * 2), ?s) AS ?foo)\n}\n")))
     (let [b (bind [(? :foo ) "19281"]
                   (group [(? :s) :rdf:a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment b))
