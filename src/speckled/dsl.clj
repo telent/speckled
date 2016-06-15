@@ -48,9 +48,11 @@
     (let [[op & args] term]
       (if (contains? inline-operators op)
         ;; (+ a b c d) => "((((a) + b) + c) + d)"
-        (reduce (fn [e r] (str "(" e " " op " " (stringize-expr r) ")"))
-                (str "(" (stringize-expr (first args)) ")")
-                (rest args))
+        (reduce (fn [e r]
+                  (if e
+                    (str "(" e " " op " " r ")")
+                    (str "(" r ")")))
+                (map stringize-expr args))
         (str op "(" (str/join ", " (map stringize-expr args)) ")")))
     :else
     (str term)))
@@ -63,15 +65,15 @@
   (is (= (stringize-expr '?foo) "?foo"))
 
   ;; variadic inline op
-  (is (= (stringize-expr '(+ 1 2 3)) "(((1) + 2) + 3)"))
-  (is (= (stringize-expr '(+ 1 2 3 17)) "((((1) + 2) + 3) + 17)"))
+  (is (= (stringize-expr '(+ 1 2 3)) "((1 + 2) + 3)"))
+  (is (= (stringize-expr '(+ 1 2 3 17)) "(((1 + 2) + 3) + 17)"))
 
   ;; nested operations
-  (is (= (stringize-expr '(+ 1 (- 2 3) 4)) "(((1) + ((2) - 3)) + 4)"))
+  (is (= (stringize-expr '(+ 1 (- 2 3) 4)) "((1 + (2 - 3)) + 4)"))
 
   ;; function call
   (is (= (stringize-expr '(fn 6 7 8)) "fn(6, 7, 8)"))
-  (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, ((7) + 7), 8)"))
+  (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, (7 + 7), 8)"))
   )
 
 
