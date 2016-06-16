@@ -50,11 +50,12 @@ pragmatism/conciseness/convenience.  From the inside out:
 
 ### Terms: literals, IRIs, variables
 
-- Literals are represented as strings (no support for language selection yet)
+- Literals are represented as strings.  There is no support for types
+  or language selection yet (forthcoming).
 
 - URL and URI objects are converted to IRI refs.  You can say `(u "foo")` to easily create a URL relative to `speckled.rdf/rdf-base-uri`
 
-- keywords are also converted to IRI, if they match one of the declared prefixes in `speckled.rdf/prefixes`
+- a keyword of the form `:prefix:word` is converted into an IRI ref by splitting into `prefix` and `word` and then checking `prefix` against the declared prefixes in `speckled.rdf/prefixes`
 
 - Variables are represented as `Variable` objects.  You can create them with the `?` function 
 
