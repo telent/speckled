@@ -354,12 +354,12 @@
   (if-let [s (.solution-seq v)]
     (str "INSERT "
          (to-string-fragment (.graph v))
-         (to-string-fragment (rdf-to-soln-seq s)))
+         (to-string-fragment s))
     (str "INSERT DATA "
          (to-string-fragment (.graph v)))))
 
 (defn insert
-  ([graph soln-seq] (->Insert graph soln-seq))
+  ([graph soln-seq] (->Insert graph (rdf-to-soln-seq soln-seq)))
   ([graph] (->Insert graph nil)))
 
 ;; prepend prefix declarations
