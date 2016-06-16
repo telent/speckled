@@ -77,22 +77,38 @@ Speckled presently supports
   variable whose value is derived from them:
   https://www.w3.org/TR/sparql11-query/#bind
 
+* `with-graph` - require that a group pattern be matched by triples in a named
+  graph instead of in the default graph. See the description of the `GRAPH` keyword at https://www.w3.org/TR/sparql11-query/#queryDataset
 
 More composition operations will be added as I need them.
 
 ### Solution, solution sequence
 
-Given a graph with some variables, a solution is some set of values
-for each of the variables which cause make the graph match data in the data
-store
+A typical SPARQL query involves a graph pattern in which some of the
+elements in some of the triples are variables.  To find a _solution_
+for the query, the query engine will find a value for each of those
+variables such that the graph pattern matches some subset of the
+triples in the data store.  A _solution sequence_ is a collection of
+all the possible solutions for some graph.
 
-A solution sequence is a collection of all the possible solutions for some graph
+In the Speckled DSL we create a solution sequence for a graph by
+applying the `solve` term to the expression that describes the graph
+(although see notes below: we can usually omit writing `solve`
+explicitly where the need for it can be inferred from the 
+surrounding expression)
 
-### solution sequence modifiers
 
-Filter, narrow or re-order the solution sequence using operators like `project` (equates to SPARQL `SELECT`), `distinct`, `limit` etc
+### Solution sequence modifiers
 
-#### So what's this `project` thing for, then?
+Solution sequence modifiers filter, narrow or re-order the solution
+sequence using operators like
+
+* `project` : allows you to name the specific variables you want from from each solution (instead of getting all of them)
+* `distinct` : remove identical solutions from the sequence
+* `order` : change the order that solutions are returned in (not implemented)
+* `limit` : 'top and tail' the solution sequence
+
+#### A short digression about `project`
 
 The `SELECT` clause in a SPARQL query serves dual duty
 
