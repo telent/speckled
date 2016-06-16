@@ -121,6 +121,13 @@
              "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://booksh.lv/ns#a> <http://booksh.lv/ns#b> ?done}\n")))))
 
 
+(deftype NamedGraph [graphname group])
+(derive NamedGraph ::graph)
+(defn with-graph [graphname group] (->NamedGraph graphname group))
+(defmethod to-string-fragment NamedGraph [ng]
+  (str "GRAPH " (rdf/serialize-term (.graphname ng))
+       "\n" (to-string-fragment (.group ng))))
+
 (deftype Union [groups])
 (derive Union ::graph)
 (defn union [ & groups ] (->Union groups))
