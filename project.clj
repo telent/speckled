@@ -1,4 +1,4 @@
-(defproject net.telent/speckled "0.1.0-SNAPSHOT"
+(defproject telent/speckled "0.1.0-SNAPSHOT"
   :description "SPARQL DSL and stuff"
   :url "http://example.com/FIXME"
   :local-repo ~(or
