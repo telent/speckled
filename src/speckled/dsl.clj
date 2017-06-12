@@ -38,7 +38,8 @@
 
 (deftype Expr [term])
 
-(defn eval [term] (->Expr term))
+;; this may not be the best function name ever (clashes with clojure.core/eval)
+;(defn eval [term] (->Expr term))
 
 (def inline-operators (set '(+ - * /)))
 
@@ -157,6 +158,33 @@
                    (group [(? :s) :rdf:a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))))
+
+
+(deftype Optional [required optional])
+(derive Optional ::graph)
+(defn optional [group & groups ]
+  (reduce (fn [r o] (->Optional r o)) group groups))
+(defmethod to-string-fragment Optional [g]
+  (str "{ "
+       (to-string-fragment (.required g))
+       " OPTIONAL "
+       (to-string-fragment (.optional g))
+       " }"))
+
+(deftest ^{:private true} gimme-options
+  (binding [rdf-base-uri "http://f.com/"]
+    (let [u (optional (group [(u "a") (u "b") (u "c")])
+                      (group [(? :s) :rdf:a "foo"]))]
+      (is (= (collapse-whitespace (to-string-fragment u))
+             "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))
+    (let [u (optional (group [(u "a") (u "b") (u "c")])
+                      (group [(u "b") :foaf:bae (? :s)])
+                      (group [(? :s) :rdf:a "foo"]))]
+      (is (= (collapse-whitespace (to-string-fragment u))
+             "{ { { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { <http://f.com/b> <http://xmlns.com/foaf/0.1/bae> ?s} } OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }"
+             )))))
+
+
 
 
 ;; "The BIND form allows a value to be assigned to a variable from a
