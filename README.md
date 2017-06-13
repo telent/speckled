@@ -9,6 +9,9 @@ there is enough here to illustrate the direction in which we think
 we're going, but there are significant gaps which I will probably only
 get to when I actually need the functionality.
 
+As of June 2017: still nominally being developed, but free time is scarce.
+
+
 # SPARQL DSL
 
 Most of Speckled is a DSL for creating SPARQL queries.  Here's a
@@ -63,45 +66,74 @@ pragmatism/conciseness/convenience.  From the inside out:
 
 A triple is a vector of three terms: [subject relation object]
 
-### Graphs: groups of triples (and groups of groups)
+### Graph patterns: pattern-matching the dataset
 
-Speckled presently supports
+A
+[group graph pattern](https://www.w3.org/TR/sparql11-query/#GroupPatterns) is
+an array of triples containing zero or more variables.  A
+_solution_ for the pattern comprises a value for each of those
+variables chosen so that the graph pattern matches some subset of the
+triples in the data store.  A _solution sequence_ is a collection of
+all the possible solutions for the graph pattern.
 
-* group graph patterns:
-  https://www.w3.org/TR/sparql11-query/#GroupPatterns
+### Inline literal data block
 
-* `UNION` for unions of groups:
-  https://www.w3.org/TR/sparql11-query/#alternatives
+An [inline data block] specifies one or more variable names and some
+literal values for each of them, to specify a solution sequence which
+does not depend on the data store being queried.  This solution sequence 
+can be (is, usually) combined with solution sequences from graph patterns.
 
-* `BIND` for binding - augment the variables in a graph with a new
-  variable whose value is derived from them:
-  https://www.w3.org/TR/sparql11-query/#bind
+```
+ (values [(? foo) (? bar)]
+   [["black"  "white"]
+    ["bark" "bite"]
+    ["shark" "hey man jaws was never my scene"]]))
+```
+
+### Combining query patterns
+
+Graph patterns (and data blocks) may be combined and augmented in
+various ways:
+
+* `(union g1 g2 ... )` - "a means of combining
+  graph patterns so that one of several alternative graph patterns may
+  match. If more than one of the alternatives matches, all the
+  possible pattern solutions are found."  See [SPARQL `UNION` keyword](https://www.w3.org/TR/sparql11-query/#alternatives)
+
+* `(bind [(? v) expr (? v2 expr2) ...] g1)` to define new variable
+ names `v`, `v2` etc and give them values derived from the variables in `g1`.
+ See [SPARQL `BIND`](https://www.w3.org/TR/sparql11-query/#bind)
 
 * `with-graph` - require that a group pattern be matched by triples in a named
-  graph instead of in the default graph. See the description of the `GRAPH` keyword at https://www.w3.org/TR/sparql11-query/#queryDataset
+  graph instead of in the default graph. See [SPARQL `GRAPH` keyword](https://www.w3.org/TR/sparql11-query/#queryDataset)
+
+* `(optional g0 g1 )` is a bit like a left join: it defines a graph
+  pattern in which the pattern `g0` _must_ match and `g1` may or may
+  not match.
+  See
+  [SPARQL `OPTIONAL` keyword](https://www.w3.org/TR/sparql11-query/#optionals).  
+  For each possible solution to `g0`, if `g1` matches then it will add
+  its bindings to the solution, and if it doesn't then it creates no
+  additional bindings but does not cause the solution to be rejected.
+  Note that `g1` must match in its entirety or not at all: if you have
+  two or more optional patterns that may match independently of each
+  other, you cannot just mush them together in `g1`.
+
+* `(optional g0 g1 g2 gn)`
+
+  As a syntactic convenience, multiple optional graphs can be supplied
+  to the `optional` clause.  This is treated as though it were
+  written 
+  
+  `(optional (optional (optional g0 g1) g2) gn)`
 
 More composition operations will be added as I need them.
-
-### Solution, solution sequence
-
-A typical SPARQL query involves a graph pattern in which some of the
-elements in some of the triples are variables.  To find a _solution_
-for the query, the query engine will find a value for each of those
-variables such that the graph pattern matches some subset of the
-triples in the data store.  A _solution sequence_ is a collection of
-all the possible solutions for some graph.
-
-In the Speckled DSL we create a solution sequence for a graph by
-applying the `solve` term to the expression that describes the graph
-(although see notes below: we can usually omit writing `solve`
-explicitly where the need for it can be inferred from the 
-surrounding expression)
 
 
 ### Solution sequence modifiers
 
-Solution sequence modifiers filter, narrow or re-order the solution
-sequence using operators like
+You can apply solution sequence modifiers to your query, in order to
+filter, narrow or re-order the solution sequence computed by that query.
 
 * `project` : allows you to name the specific variables you want from from each solution (instead of getting all of them)
 * `distinct` : remove identical solutions from the sequence
@@ -116,10 +148,10 @@ The `SELECT` clause in a SPARQL query serves dual duty
 sequence by removing some of the variables from it (in relational
 algebra we would describe this as a "projection" or "restriction"),
 
-* and second to indicate the form of the result to the SPARQL
-processor - that we want to know the values of the variables (as
-opposed to, e.g. whether a solution exists (`ASK`) or a new set of
-triples that use them (`CONSTRUCT`)).
+* and second to indicate the desired form of the result to the SPARQL
+processor - specifically, that we want to know the values of the
+variables (as opposed to, e.g. whether a solution exists (`ASK`) or a
+new set of triples that use them (`CONSTRUCT`)).
 
 In Speckled we separate these two roles: we use `project` for the
 "Projection" operator that narrows the solution sequence, and then we
@@ -142,11 +174,7 @@ These say what we want done with the solution sequence.  In SPARQL these are
 
 ## Convenience shortcuts
 
-1. you can usually omit writing `solve` where its necessity can be
-inferred: any operator that requires a solution sequence will wrap its
-argument in one if it isn't already
-
-2. you can omit `project` if you don't want to restrict the variables
+1. you can omit `project` if you don't want to restrict the variables
 returned, and if you omit the operator to specify the top level form
 type (`select`, `construct`, `ask`, `insert` ...) then it will assume
 that you wanted a `SELECT`. So you can write simple queries much more
