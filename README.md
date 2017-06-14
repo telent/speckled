@@ -78,13 +78,15 @@ all the possible solutions for the graph pattern.
 
 ### Inline literal data block
 
-An [inline data block] specifies one or more variable names and some
-literal values for each of them, to specify a solution sequence which
-does not depend on the data store being queried.  This solution sequence 
-can be (is, usually) combined with solution sequences from graph patterns.
+An
+[inline data block](https://www.w3.org/TR/sparql11-query/#inline-data)
+specifies one or more variable names and some literal values for each
+of them, to specify a solution sequence which does not depend on the
+data store being queried.  This solution sequence can be (is, usually)
+combined with solution sequences from graph patterns.
 
 ```
- (values [(? foo) (? bar)]
+ (values [(? :foo) (? :bar)]
    [["black"  "white"]
     ["bark" "bite"]
     ["shark" "hey man jaws was never my scene"]]))
@@ -100,7 +102,7 @@ various ways:
   match. If more than one of the alternatives matches, all the
   possible pattern solutions are found."  See [SPARQL `UNION` keyword](https://www.w3.org/TR/sparql11-query/#alternatives)
 
-* `(bind [(? v) expr (? v2 expr2) ...] g1)` to define new variable
+* `(bind [(? :v) expr (? :v2) expr2 ...] g1)` to define new variable
  names `v`, `v2` etc and give them values derived from the variables in `g1`.
  See [SPARQL `BIND`](https://www.w3.org/TR/sparql11-query/#bind)
 
@@ -127,7 +129,9 @@ various ways:
   
   `(optional (optional (optional g0 g1) g2) gn)`
 
-More composition operations will be added as I need them.
+If you need SPARQL composition operations which are not in this list,
+the most likely reason they aren't implemented is that I haven't got
+to them yet.  Patches, as they say, welcome.
 
 
 ### Solution sequence modifiers
