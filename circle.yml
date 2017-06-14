@@ -1,0 +1,9 @@
+test:
+  override:
+    - lein test src/speckled/*.clj
+    
+deployment:
+  clojars:
+    branch: master
+    commands:
+      - lein deploy

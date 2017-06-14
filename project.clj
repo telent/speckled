@@ -1,6 +1,9 @@
 (defproject telent/speckled "0.1.0-SNAPSHOT"
   :description "SPARQL DSL and stuff"
-  :url "http://example.com/FIXME"
+  :url "http://github.com/telent/speckled"
+  :repositories [["snapshots" {:url  "https://clojars.org/repo"
+                               :username "telent"
+                               :password :env/CLOJARS_PASSWORD}]]
   :local-repo ~(or
                 (System/getenv "M2REPOSITORY")
                 (.toString (clojure.java.io/file (System/getenv "HOME")
