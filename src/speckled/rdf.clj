@@ -88,6 +88,8 @@
 
 (defmulti serialize-term class)
 
+(defmethod serialize-term Number [n] (pr-str n))
+
 (defmethod serialize-term String [s]
   (str "\"" (str/escape s {\" "\\\""})
        "\""))

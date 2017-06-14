@@ -55,12 +55,21 @@
                     (str "(" r ")")))
                 (map stringize-expr args))
         (str op "(" (str/join ", " (map stringize-expr args)) ")")))
+
+    ;; not at all sure it is sensible to support this syntax, need to think
+    ;; about it some more
+    (and (symbol? term) (= (first (name term)) \?))
+    (pr-str term)
+
     :else
-    (pr-str term)))
+    (rdf/serialize-term term)))
 
 (deftest ^{:private true} express-yourself
   (is (= (stringize-expr '7) "7"))
   (is (= (stringize-expr '?foo) "?foo"))
+
+  (is (= (stringize-expr (u "http://f.com")) "<http://f.com>"))
+  (is (= (stringize-expr :rdf:type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
 
   ;; variadic inline op
   (is (= (stringize-expr '(+ 1 2 3)) "((1 + 2) + 3)"))
