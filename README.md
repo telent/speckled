@@ -11,6 +11,24 @@ get to when I actually need the functionality.
 
 As of June 2017: still nominally being developed, but free time is scarce.
 
+## Installation
+
+It's on clojars.  Depending on whichever your favourite build tool is, you
+should just be able to add it to your project dependencies in
+`project.clj`/`build.boot`/`pom.xml`/`Gemfile` (OK, perhaps not
+that last one so much)
+
+[![Clojars Project](https://img.shields.io/clojars/v/telent/speckled.svg)](https://clojars.org/telent/speckled)
+
+## Build from source
+
+It's [on github](https://github.com/telent/speckled) and it requires
+Leiningen.  Clone it and run `lein jar` or whatever.
+
+To run the tests, do `lein test src/speckled/*.clj`.  I like to put
+unit tests alongside the code that they're testing: it reminds me to
+keep them up to date and provides (perhaps) useful documentation for
+anyone reading the code.
 
 # SPARQL DSL
 
