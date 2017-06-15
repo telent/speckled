@@ -100,12 +100,12 @@
   (serialize-term (u k)))
 
 (defn to-iso8601 [datetime]
-  (let [fmt (doto (SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ssZ")
+  (let [fmt (doto (SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ss'Z'")
               (.setTimeZone (java.util.TimeZone/getTimeZone "UTC")))]
     (.format fmt datetime)))
 
 (defmethod serialize-term java.util.Date [d]
-  (str \" (to-iso8601 d) "\"^^xsd:date"))
+  (str \" (to-iso8601 d) "\"^^xsd:dateTime"))
 
 (defmethod serialize-term URI [u] (str "<" (.toString u) ">"))
 (defmethod serialize-term URL [u] (str "<" (.toString u) ">"))
@@ -117,7 +117,7 @@
   (is (= (serialize-term "James \"The Turkey\" Mason")
          "\"James \\\"The Turkey\\\" Mason\""))
   (is (= (serialize-term (java.util.Date. 1443688780575))
-         "\"2015-10-01T08:39:40+0000\"^^xsd:date")))
+         "\"2015-10-01T08:39:40Z\"^^xsd:dateTime")))
 
 
 (def n-triple-parser (insta/parser (io/resource "n-triples.bnf")))
