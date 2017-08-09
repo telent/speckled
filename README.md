@@ -121,7 +121,7 @@ various ways:
   possible pattern solutions are found."  See [SPARQL `UNION` keyword](https://www.w3.org/TR/sparql11-query/#alternatives)
 
 * `(bind [(? :v) expr (? :v2) expr2 ...] g1)` to define new variable
- names `?v`, `?v2` etc and give them values derived from the variables in `g1`.
+ names `v`, `v2` etc and give them values derived from the variables in `g1`.
  See [SPARQL `BIND`](https://www.w3.org/TR/sparql11-query/#bind)
 
 * `with-graph` - require that a group pattern be matched by triples in a named
@@ -150,17 +150,6 @@ various ways:
 If you need SPARQL composition operations which are not in this list,
 the most likely reason they aren't implemented is that I haven't got
 to them yet.  Patches, as they say, welcome.
-* `(group-by [(? :v1) (? :v2) ...] [(? :v3) '(min x) (? :v4) '(count y) ...] g0)`
-
-   Group the solutions of `g0` into subsequences such that in each
-   subsequence, every solution has the same values of `?v1` `?v2` etc.
-   Then apply the aggregating functions `(min x)`, `(count y)` etc
-   across each subsequence, to create a new solution
-   sequence which has variables `?v1 ?v2 ?v3 ?v4` and as many
-   solutions as there were subsequences.
-   
-   https://www.w3.org/TR/sparql11-query/#groupby
-
 
 
 ### Solution sequence modifiers

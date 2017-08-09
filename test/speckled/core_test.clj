@@ -7,8 +7,7 @@
 
 ;; these are integration tests which run against a real sparql endpoint
 
-#_
-(deftest ^:integration sparql-query
+(deftest sparql-query
   (let [q (query (comp :body http/post)
                  (solve
                   (group [(? :a)
