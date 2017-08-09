@@ -57,7 +57,8 @@
         (str op "(" (str/join ", " (map stringize-expr args)) ")")))
 
     ;; not at all sure it is sensible to support this syntax, need to think
-    ;; about it some more
+    ;; about it some more.  But if we don't, user needs to antiquote
+    ;; variables in quoted expressions :-(
     (and (symbol? term) (= (first (name term)) \?))
     (pr-str term)
 
@@ -135,8 +136,9 @@
 (derive NamedGraph ::graph)
 (defn with-graph [graphname group] (->NamedGraph graphname group))
 (defmethod to-string-fragment NamedGraph [ng]
-  (str "GRAPH " (rdf/serialize-term (.graphname ng))
-       "\n" (to-string-fragment (.group ng))))
+  (str "{ GRAPH " (rdf/serialize-term (.graphname ng))
+       "\n" (to-string-fragment (.group ng))
+       "} "))
 
 (deftype Union [groups])
 (derive Union ::graph)
@@ -343,6 +345,65 @@
                  (group [(? :n) :foaf:copyOf (? :ed)]
                         [(? :n) :rdfs:label (? :title)])))
        "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n")))
+
+(deftype Aggregate [grouping-variables aggregating-variables solution])
+(derive Aggregate ::projection)
+(defn grouping [grouping-variables aggregating-variables pattern]
+  (->Aggregate grouping-variables
+               (map (fn [[n v]] [n (->Expr v)])
+                    (partition 2 2 aggregating-variables))
+               (rdf-to-soln-seq pattern)))
+
+(defmethod to-string-fragment Aggregate [v]
+  (let [aggregates (map (fn [[var term]]
+                          (str
+                           "("
+                           (to-string-fragment term)
+                           " AS "
+                           (rdf/serialize-term var)
+                           ")"))
+                        (.aggregating-variables v))]
+    (str "SELECT "
+         (str/join " \n" (map rdf/serialize-term (.grouping-variables v)))
+         " \n"
+         (str/join
+          " \n"
+          aggregates)
+         (to-string-fragment (.solution v))
+         " GROUP BY "
+         (to-string-fragment (.grouping-variables v)))))
+
+(deftest ^{:private true} group-by-test
+  (binding [rdf-base-uri "http://f.com/"
+            rdf/prefixes (assoc rdf/prefixes "b" "http://f.com/ns#")]
+    (let [subject
+          (to-string-fragment
+           (grouping [(? :lastname) (? :postcode)]
+                     [(? :bikes) '(count ?framenumber)
+                      (? :weight) '(sum ?weight)
+                      (? :value) '(sum ?cost)]
+                     (group [(? :person) :b:named (? :lastname)]
+                            [(? :person) :b:livesAt (? :address)]
+                            [(? :address) :b:hasPostcode (? :postcode)]
+                            [(? :person) :b:owns (? :bike)]
+                            [(? :bike) :b:hasFrameNumber (? :framenumber)]
+                            [(? :bike) :b:weighs (? :weight)]
+                            [(? :bike) :b:costs (? :cost)])))]
+      (is (equal-but-for-whitespace
+           subject
+           (str
+            "SELECT ?lastname ?postcode "
+            "(count(?framenumber) AS ?bikes) \n"
+            "(sum(?weight) AS ?weight) \n"
+            "(sum(?cost) AS ?value) "
+            "WHERE {\n?person <http://f.com/ns#named> ?lastname .\n"
+            " ?person <http://f.com/ns#livesAt> ?address .\n"
+            "?address <http://f.com/ns#hasPostcode> ?postcode .\n"
+            "?person <http://f.com/ns#owns> ?bike .\n"
+            "?bike <http://f.com/ns#hasFrameNumber> ?framenumber .\n"
+            "?bike <http://f.com/ns#weighs> ?weight .\n"
+            "?bike <http://f.com/ns#costs> ?cost}\n"
+            " GROUP BY ?lastname ?postcode"))))))
 
 
 (deftype Limit [soln-seq limit])
