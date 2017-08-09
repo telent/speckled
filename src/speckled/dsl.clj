@@ -230,7 +230,6 @@
              ;; here, fwiw
              "{ { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo) }")))))
 
-
 (deftype Values [variables rows])
 ;; deriving Values from graph is semantically dubious, but as the SPARQL grammar
 ;; provides it as a kind of GroupGraphPattern, entirely precedented.
@@ -315,7 +314,8 @@
 
 (deftype Projection [variables soln-seq])
 (derive ::modified-soln-seq ::soln-seq)
-(derive Projection ::soln-seq)
+(derive ::projection ::soln-seq)
+(derive Projection ::projection)
 
 (defmethod to-string-fragment Projection [v]
   (let [variables (if (= (.variables v) :*)
@@ -343,6 +343,49 @@
                  (group [(? :n) :foaf:copyOf (? :ed)]
                         [(? :n) :rdfs:label (? :title)])))
        "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n")))
+
+(deftype Aggregate [grouping-variables aggregating-variables solution])
+(derive Aggregate ::projection)
+(defn group-by [grouping-variables aggregating-variables pattern]
+  (->Aggregate grouping-variables aggregating-variables
+               (rdf-to-soln-seq pattern)))
+
+(defmethod to-string-fragment Aggregate [v]
+  (str "SELECT "
+       (str/join " " (map rdf/serialize-term (.grouping-variables v)))
+;       (to-string-fragment (.aggregating-variables v))
+       (to-string-fragment (.solution v))
+       " GROUP BY "
+       (to-string-fragment (.grouping-variables v))))
+
+(deftest ^{:private true} group-by-test
+  (binding [rdf-base-uri "http://f.com/"
+            rdf/prefixes (assoc rdf/prefixes "b" "http://f.com/ns#")]
+    (let [subject
+          (to-string-fragment
+           (group-by [(? :lastname) (? :postcode)]
+                     [(? :bikes) '(count (? :framenumber))
+                      (? :weight) '(sum (? :weight))
+                      (? :value) '(sum (? :cost))]
+                     (group [(? :person) :b:named (? :lastname)]
+                            [(? :person) :b:livesAt (? :address)]
+                            [(? :address) :b:hasPostcode (? :postcode)]
+                            [(? :person) :b:owns (? :bike)]
+                            [(? :bike) :b:hasFrameNumber (? :framenumber)]
+                            [(? :bike) :b:weighs (? :weight)]
+                            [(? :bike) :b:costs (? :cost)])))]
+      (is (equal-but-for-whitespace
+           subject
+           (str
+            "SELECT ?lastname ?postcode "
+            "WHERE {\n?person <http://f.com/ns#named> ?lastname .\n"
+            " ?person <http://f.com/ns#livesAt> ?address .\n"
+            "?address <http://f.com/ns#hasPostcode> ?postcode .\n"
+            "?person <http://f.com/ns#owns> ?bike .\n"
+            "?bike <http://f.com/ns#hasFrameNumber> ?framenumber .\n"
+            "?bike <http://f.com/ns#weighs> ?weight .\n"
+            "?bike <http://f.com/ns#costs> ?cost}\n"
+            " GROUP BY ?lastname ?postcode"))))))
 
 
 (deftype Limit [soln-seq limit])
@@ -384,7 +427,7 @@
 (with-test
   (defn- has-projection? [soln-seq]
     (let [c (class soln-seq)]
-      (or (isa? c Projection)
+      (or (isa? c ::projection)
           (and (isa? c ::modified-soln-seq)
                (has-projection? (.soln-seq soln-seq))))))
   (is (has-projection? (project [] (solve [[:a :b :c]]))))
