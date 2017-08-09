@@ -135,8 +135,9 @@
 (derive NamedGraph ::graph)
 (defn with-graph [graphname group] (->NamedGraph graphname group))
 (defmethod to-string-fragment NamedGraph [ng]
-  (str "GRAPH " (rdf/serialize-term (.graphname ng))
-       "\n" (to-string-fragment (.group ng))))
+  (str "{ GRAPH " (rdf/serialize-term (.graphname ng))
+       "\n" (to-string-fragment (.group ng))
+       "} "))
 
 (deftype Union [groups])
 (derive Union ::graph)
@@ -346,27 +347,40 @@
 
 (deftype Aggregate [grouping-variables aggregating-variables solution])
 (derive Aggregate ::projection)
-(defn group-by [grouping-variables aggregating-variables pattern]
-  (->Aggregate grouping-variables aggregating-variables
+(defn grouping [grouping-variables aggregating-variables pattern]
+  (->Aggregate grouping-variables
+               (map (fn [[n v]] [n (->Expr v)])
+                    (partition 2 2 aggregating-variables))
                (rdf-to-soln-seq pattern)))
 
 (defmethod to-string-fragment Aggregate [v]
-  (str "SELECT "
-       (str/join " " (map rdf/serialize-term (.grouping-variables v)))
-;       (to-string-fragment (.aggregating-variables v))
-       (to-string-fragment (.solution v))
-       " GROUP BY "
-       (to-string-fragment (.grouping-variables v))))
+  (let [aggregates (map (fn [[var term]]
+                          (str
+                           "("
+                           (to-string-fragment term)
+                           " AS "
+                           (rdf/serialize-term var)
+                           ")"))
+                        (.aggregating-variables v))]
+    (str "SELECT "
+         (str/join " \n" (map rdf/serialize-term (.grouping-variables v)))
+         " \n"
+         (str/join
+          " \n"
+          aggregates)
+         (to-string-fragment (.solution v))
+         " GROUP BY "
+         (to-string-fragment (.grouping-variables v)))))
 
 (deftest ^{:private true} group-by-test
   (binding [rdf-base-uri "http://f.com/"
             rdf/prefixes (assoc rdf/prefixes "b" "http://f.com/ns#")]
     (let [subject
           (to-string-fragment
-           (group-by [(? :lastname) (? :postcode)]
-                     [(? :bikes) '(count (? :framenumber))
-                      (? :weight) '(sum (? :weight))
-                      (? :value) '(sum (? :cost))]
+           (grouping [(? :lastname) (? :postcode)]
+                     [(? :bikes) '(count ?framenumber)
+                      (? :weight) '(sum ?weight)
+                      (? :value) '(sum ?cost)]
                      (group [(? :person) :b:named (? :lastname)]
                             [(? :person) :b:livesAt (? :address)]
                             [(? :address) :b:hasPostcode (? :postcode)]
@@ -378,6 +392,9 @@
            subject
            (str
             "SELECT ?lastname ?postcode "
+            "(count(?framenumber) AS ?bikes) \n"
+            "(sum(?weight) AS ?weight) \n"
+            "(sum(?cost) AS ?value) "
             "WHERE {\n?person <http://f.com/ns#named> ?lastname .\n"
             " ?person <http://f.com/ns#livesAt> ?address .\n"
             "?address <http://f.com/ns#hasPostcode> ?postcode .\n"

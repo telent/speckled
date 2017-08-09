@@ -147,10 +147,7 @@ various ways:
   
   `(optional (optional (optional g0 g1) g2) gn)`
 
-If you need SPARQL composition operations which are not in this list,
-the most likely reason they aren't implemented is that I haven't got
-to them yet.  Patches, as they say, welcome.
-* `(group-by [(? :v1) (? :v2) ...] [(? :v3) '(min x) (? :v4) '(count y) ...] g0)`
+* `(grouping [(? :v1) (? :v2) ...] [(? :v3) '(min x) (? :v4) '(count y) ...] g0)`
 
    Group the solutions of `g0` into subsequences such that in each
    subsequence, every solution has the same values of `?v1` `?v2` etc.
@@ -161,6 +158,9 @@ to them yet.  Patches, as they say, welcome.
    
    https://www.w3.org/TR/sparql11-query/#groupby
 
+If you need SPARQL composition operations which are not in this list,
+the most likely reason they aren't implemented is that I haven't got
+to them yet.  Patches, as they say, welcome.
 
 
 ### Solution sequence modifiers
