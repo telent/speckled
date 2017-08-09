@@ -57,7 +57,8 @@
         (str op "(" (str/join ", " (map stringize-expr args)) ")")))
 
     ;; not at all sure it is sensible to support this syntax, need to think
-    ;; about it some more
+    ;; about it some more.  But if we don't, user needs to antiquote
+    ;; variables in quoted expressions :-(
     (and (symbol? term) (= (first (name term)) \?))
     (pr-str term)
 
