@@ -404,6 +404,16 @@
             " GROUP BY ?lastname ?postcode"))))))
 
 
+(deftype Ordering [soln-seq sort-keys])
+(derive Ordering ::modified-soln-seq)
+
+(defn order-by [soln-seq & sort-keys]
+  (->Ordering (rdf-to-soln-seq soln-seq) (map ->Expr sort-keys)))
+
+(defmethod to-string-fragment Ordering [v]
+  (str (to-string-fragment (.soln-seq v))
+       " ORDER BY " (str/join " " (map to-string-fragment (.sort-keys v)))))
+
 (deftype Limit [soln-seq limit])
 (derive Limit ::modified-soln-seq)
 

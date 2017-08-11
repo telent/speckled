@@ -171,7 +171,8 @@ filter, narrow or re-order the solution sequence computed by that query.
 
 * `project` : allows you to name the specific variables you want from from each solution (instead of getting all of them)
 * `distinct` : remove identical solutions from the sequence
-* `order` : change the order that solutions are returned in (not implemented)
+* `order-by` : change the order that solutions are returned in: e.g. `(order-by
+    soln-seq '?date)` or `(order soln-seq '(desc ?date))`
 * `limit` : 'top and tail' the solution sequence
 
 #### A short digression about `project`
