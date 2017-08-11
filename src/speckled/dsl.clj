@@ -38,9 +38,6 @@
 
 (deftype Expr [term])
 
-;; this may not be the best function name ever (clashes with clojure.core/eval)
-;(defn eval [term] (->Expr term))
-
 (def inline-operators (set '(+ - * /)))
 
 (defn stringize-expr [term]
@@ -317,7 +314,8 @@
 
 (deftype Projection [variables soln-seq])
 (derive ::modified-soln-seq ::soln-seq)
-(derive Projection ::soln-seq)
+(derive Projection ::projection)
+(derive ::projection ::soln-seq)
 
 (defmethod to-string-fragment Projection [v]
   (let [variables (if (= (.variables v) :*)
@@ -445,7 +443,7 @@
 (with-test
   (defn- has-projection? [soln-seq]
     (let [c (class soln-seq)]
-      (or (isa? c Projection)
+      (or (isa? c ::projection)
           (and (isa? c ::modified-soln-seq)
                (has-projection? (.soln-seq soln-seq))))))
   (is (has-projection? (project [] (solve [[:a :b :c]]))))
