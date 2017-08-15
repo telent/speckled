@@ -134,15 +134,15 @@
 
 (defmulti make-literal (fn [string iriref] iriref))
 
-(defmethod make-literal :xsd:boolean [string _]
+(defmethod make-literal (u :xsd:boolean) [string _]
   (case string
     "true" true
     "false" false))
 
-(defmethod make-literal :xsd:string [string _]
+(defmethod make-literal (u :xsd:string) [string _]
   string)
 
-(defmethod make-literal :xsd:dateTime [string _]
+(defmethod make-literal (u :xsd:dateTime) [string _]
   (from-iso8601 string))
 
 (defn visit-node [branch]
@@ -160,7 +160,7 @@
             lang (and (= (first lang-or-caret) :LANGTAG)
                       (str/join (rest (rest lang-or-caret))))
             iri (and (= lang-or-caret "^^") iri)]
-        (make-literal s (or iri  :xsd:string)))
+        (make-literal s (u (or iri  :xsd:string))))
       :WS ""
       :UCHAR (let [[_ & hexs] (rest branch)]
                (String.
