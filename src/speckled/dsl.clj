@@ -38,7 +38,7 @@
 
 (deftype Expr [term])
 
-(def inline-operators (set '(+ - * /)))
+(def inline-operators (set '(+ - * / =)))
 
 (defn stringize-expr [term]
   (cond
