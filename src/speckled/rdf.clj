@@ -104,6 +104,16 @@
               (.setTimeZone (java.util.TimeZone/getTimeZone "UTC")))]
     (.format fmt datetime)))
 
+(defn from-iso8601 [datetime-string]
+  (let [fmt (doto (SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ss'Z'")
+              (.setTimeZone (java.util.TimeZone/getTimeZone "UTC")))
+        pos (java.text.ParsePosition. 0)]
+    (.parse fmt datetime-string pos)))
+
+(deftest read-date-test
+  (is (= (from-iso8601 "2015-10-01T08:39:40Z")
+         (java.util.Date. 1443688780000))))
+
 (defmethod serialize-term java.util.Date [d]
   (str \" (to-iso8601 d) "\"^^xsd:dateTime"))
 
@@ -122,6 +132,19 @@
 
 (def n-triple-parser (insta/parser (io/resource "n-triples.bnf")))
 
+(defmulti make-literal (fn [string iriref] iriref))
+
+(defmethod make-literal :xsd:boolean [string _]
+  (case string
+    "true" true
+    "false" false))
+
+(defmethod make-literal :xsd:string [string _]
+  string)
+
+(defmethod make-literal :xsd:dateTime [string _]
+  (from-iso8601 string))
+
 (defn visit-node [branch]
   (if (vector? branch)
     (case (first branch)
@@ -132,7 +155,12 @@
             (URI. iri)))
       :STRING_LITERAL (str/join (rest branch))
       :STRING_LITERAL_QUOTED (let [[_ string _] (rest branch)] string)
-      :literal (second branch)
+      :literal
+      (let [[s & [lang-or-caret iri]] (rest branch)
+            lang (and (= (first lang-or-caret) :LANGTAG)
+                      (str/join (rest (rest lang-or-caret))))
+            iri (and (= lang-or-caret "^^") iri)]
+        (make-literal s (or iri  :xsd:string)))
       :WS ""
       :UCHAR (let [[_ & hexs] (rest branch)]
                (String.
@@ -159,3 +187,12 @@
   (let [ls (str/split (slurp (io/resource "n-triples-test.nt")) #"\n")]
     (doall
      (map #(is  (count (parse-n-triples %))) ls))))
+
+(deftest convert-literals-test
+  (let [c #(nth (first (parse-n-triples %)) 2)]
+    (is (= (c "<http://example/s> <http://example/p> \"true\"^^<http://www.w3.org/2001/XMLSchema#boolean> .\n") true))
+    (is (= (c "<http://example/s> <http://example/p> \"false\"^^<http://www.w3.org/2001/XMLSchema#boolean> .\n") false))
+    (is (= (c "<http://example/s> <http://example/p> \"fish\"^^<http://www.w3.org/2001/XMLSchema#string> .\n") "fish"))
+    (is (= (c "<http://example/s> <http://example/p> \"chips\" .\n") "chips"))
+    (is (= (c "<http://example/s> <http://example/p> \"2015-10-01T08:42:40Z\"^^<http://www.w3.org/2001/XMLSchema#dateTime> .\n")
+           #inst "2015-10-01T08:42:40.000-00:00"))))
