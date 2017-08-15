@@ -31,8 +31,12 @@
         {}))))
 
 (defmulti xml-extract-content (fn [el] (:tag (first el))))
+
 (defmethod xml-extract-content :literal [el]
-  (first (:content (first el))))
+  (let [datatype (or (-> el first :attrs :datatype)
+                     :xsd:string)]
+    (rdf/make-literal (first (:content (first el))) (u datatype))))
+
 (defmethod xml-extract-content :uri [el]
   (URI. (first (:content (first el)))))
 
