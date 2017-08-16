@@ -38,12 +38,13 @@
 
 (deftype Expr [term])
 
-(def inline-operators (set '(+ - * / =)))
+(def inline-operators (set (map name '(+ - * / = < > <= >=))))
 
 (defn stringize-expr [term]
   (cond
     (seq? term)
-    (let [[op & args] term]
+    (let [[op & args] term
+          op (name op)]
       (if (contains? inline-operators op)
         ;; (+ a b c d) => "((((a) + b) + c) + d)"
         (reduce (fn [e r]
@@ -57,7 +58,7 @@
     ;; about it some more.  But if we don't, user needs to antiquote
     ;; variables in quoted expressions :-(
     (and (symbol? term) (= (first (name term)) \?))
-    (pr-str term)
+    (name term)
 
     :else
     (rdf/serialize-term term)))
