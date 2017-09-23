@@ -18,7 +18,8 @@ should just be able to add it to your project dependencies in
 `project.clj`/`build.boot`/`pom.xml`/`Gemfile` (OK, perhaps not
 that last one so much)
 
-[![Clojars Project](https://img.shields.io/clojars/v/telent/speckled.svg)](https://clojars.org/telent/speckled)
+[![Clojars Project](https://img.shields.io/clojars/v/telent/speckled.svg)](https://clojars.org/telent/speckled) 
+[![CircleCI](https://circleci.com/gh/telent/speckled.svg?style=svg)](https://circleci.com/gh/telent/speckled)
 
 ## Build from source
 
