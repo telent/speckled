@@ -94,6 +94,9 @@
   (str "\"" (str/escape s {\" "\\\""})
        "\""))
 
+(defmethod serialize-term java.lang.Boolean [b]
+  (if b "true" "false"))
+
 (defmethod serialize-term clojure.lang.Keyword [k]
   (if-not (u k) (throw (ex-info "unrecognised prefix in keyword "
                                 {:keyword k})))
