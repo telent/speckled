@@ -494,20 +494,47 @@
                              [(? :n) :rdfs:label (? :title)]))))
          "CONSTRUCT {\n?n <http://booksh.lv/ns#isA> <http://booksh.lv/ns#book> .\n?n <http://booksh.lv/ns#edition> ?ed .\n?n <http://booksh.lv/ns#title> ?title}\n WHERE {\n?n <http://booksh.lv/ns#copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))))
 
-(deftype Insert [graph solution-seq])
-(derive Insert ::update-form)
+(deftype InsertData [graph])
+(derive InsertData ::update-form)
 
-(defmethod to-string-fragment Insert [v]
-  (if-let [s (.solution-seq v)]
-    (str "INSERT "
-         (to-string-fragment (.graph v))
-         (to-string-fragment s))
-    (str "INSERT DATA "
-         (to-string-fragment (.graph v)))))
+(defmethod to-string-fragment InsertData [v]
+  (str "INSERT DATA "
+       (to-string-fragment (.graph v))))
+
+(deftype DeleteData [graph])
+(derive DeleteData ::update-form)
+
+(defmethod to-string-fragment DeleteData [v]
+  (str "DELETE DATA "
+       (to-string-fragment (.graph v))))
+
+(deftype Replacement [deletions insertions solution-seq])
+(derive Replacement ::update-form)
+
+(defmethod to-string-fragment Replacement [v]
+  (let [insert-clause (if-let [i (.insertions v)]
+                        (str "INSERT " (to-string-fragment i))
+                        "")
+        delete-clause (if-let [i (.deletions v)]
+                        (str "DELETE " (to-string-fragment i))
+                        "")]
+    (str delete-clause "\n"
+         insert-clause "\n"
+         (to-string-fragment (.solution-seq v)))))
 
 (defn insert
-  ([graph soln-seq] (->Insert graph (rdf-to-soln-seq soln-seq)))
-  ([graph] (->Insert graph nil)))
+  ([graph soln-seq] (->Replacement nil graph (rdf-to-soln-seq soln-seq)))
+  ([graph] (->InsertData graph)))
+
+(defn delete
+  ([graph soln-seq] (->Replacement graph nil (rdf-to-soln-seq soln-seq)))
+  ([graph] (->InsertData graph)))
+
+(defn substitute
+  [deletions insertions soln-seq]
+  (->Replacement deletions insertions (rdf-to-soln-seq soln-seq)))
+
+
 
 ;; prepend prefix declarations
 
@@ -588,7 +615,17 @@ WHERE {
     (->string
      (insert
       (group [(URI. "http://example.com") :foaf:nick "granddad"])))
-    "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"}")))
+    "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"}"))
+  (is
+   (equal-form
+    (->string
+     (substitute
+      (group [(? :person) :rdfs:label "Old boss"])
+      (group [(? :person) :rdfs:label "New boss"])
+      (solve (group [(? :person) :rdfs:label "New boss"]))))
+    "INSERT {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n\nDELETE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"Old boss\"}\n\n WHERE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n")))
+
+
 
 (deftest ^{:private true} test-construct-query
   (let [sparql (construct
