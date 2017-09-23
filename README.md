@@ -200,12 +200,15 @@ distinction instead of treating it as magic :-)
 
 ### Top level forms
 
-These say what we want done with the solution sequence.  In SPARQL these are
+These say what we want done with the solution sequence.  
 
-  * SELECT - tell me the values
-  * CONSTRUCT - make up some new triples
-  * INSERT - make up some new triples and add them to the data store
-  * etc
+  * `select` is SPARQL SELECT - tell me the values
+  * `construct` is SPARQL CONSTRUCT - make up some new triples
+  * `(insert graph soln-seq)` is SPARQL INSERT - make up some new triples and add them
+    to the data store.  If soln-seq is omitted we use `INSERT DATA`
+  * `delete` is SPARQL DELETE (as per INSERT)
+  * `(substitute deletions insertions soln-seq)` is the least worst name we can think of for SPARQL `DELETE-INSERT`
+
 
 ## Convenience shortcuts
 
