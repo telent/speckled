@@ -623,7 +623,7 @@ WHERE {
       (group [(? :person) :rdfs:label "Old boss"])
       (group [(? :person) :rdfs:label "New boss"])
       (solve (group [(? :person) :rdfs:label "New boss"]))))
-    "INSERT {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n\nDELETE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"Old boss\"}\n\n WHERE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n")))
+    "DELETE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"Old boss\"}\n\nINSERT {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n\nWHERE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n")))
 
 
 
