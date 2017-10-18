@@ -72,8 +72,18 @@ pragmatism/conciseness/convenience.  From the inside out:
 
 ### Terms: literals, IRIs, variables
 
-- Literals are represented as strings.  There is no support for types
-  or language selection yet (forthcoming).
+Conversions to and from literals are controlled by the multimethods
+
+* `speckled.rdf/serialize-term` which converts a Clojure value to an
+RDF literal, and
+
+* `speckled.rdf/make-literal` which converts an RDF literal into a Clojure
+value.  You can add methods for your own XSD datatype
+
+Out of the box, Speckled knows how to convert
+- Strings, Numbers and Booleans, to simple literals
+- java.util.Date, to xsd:dateTime
+
 
 - URL and URI objects are converted to IRI refs.  You can say `(u "foo")` to easily create a URL relative to `speckled.rdf/rdf-base-uri`
 
