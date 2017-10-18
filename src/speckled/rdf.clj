@@ -91,7 +91,11 @@
 (defmethod serialize-term Number [n] (pr-str n))
 
 (defmethod serialize-term String [s]
-  (str "\"" (str/escape s {\" "\\\""})
+  (str "\""
+       (str/escape s {\" "\\\""
+                      \\ "\\\\"
+                      (char 10) "\\n"
+                      (char 13) "\\r"})
        "\""))
 
 (defmethod serialize-term java.lang.Boolean [b]
@@ -129,6 +133,8 @@
   (is (= (serialize-term "donkey") "\"donkey\""))
   (is (= (serialize-term "James \"The Turkey\" Mason")
          "\"James \\\"The Turkey\\\" Mason\""))
+  (is (= (serialize-term "James\nMason")
+         "\"James\\nMason\""))
   (is (= (serialize-term (java.util.Date. 1443688780575))
          "\"2015-10-01T08:39:40Z\"^^xsd:dateTime")))
 
