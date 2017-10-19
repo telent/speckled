@@ -90,18 +90,13 @@
 
 (with-test
   (defn- triple-to-string [triple]
-    (if (string? triple)
-      triple
-      (str/join " " (map rdf/serialize-term triple))))
+    (str/join " " (map rdf/serialize-term triple)))
 
   (binding [rdf-base-uri "http://f.com/"]
     (is (= (triple-to-string [(u "a")
                               (u "b")
                               (u "c")])
-           "<http://f.com/a> <http://f.com/b> <http://f.com/c>")))
-  (is (= (triple-to-string
-          "<http://f.com/a> <http://f.com/b> <http://f.com/c>")
-         "<http://f.com/a> <http://f.com/b> <http://f.com/c>" )))
+           "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))))
 
 
 (defmethod to-string-fragment (class []) [v]
