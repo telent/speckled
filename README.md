@@ -124,16 +124,15 @@ combined with solution sequences from graph patterns.
 ### Combining query patterns
 
 Graph patterns (and data blocks) may be combined and augmented in
-various ways:
+various ways.  If you need SPARQL composition operations which are not
+in this list, the most likely reason they aren't implemented is that I
+haven't got to them yet.  Patches, as they say, welcome.
+
 
 * `(union g1 g2 ... )` - "a means of combining
   graph patterns so that one of several alternative graph patterns may
   match. If more than one of the alternatives matches, all the
   possible pattern solutions are found."  See [SPARQL `UNION` keyword](https://www.w3.org/TR/sparql11-query/#alternatives)
-
-* `(bind [(? :v) expr (? :v2) expr2 ...] g1)` to define new variable
- names `v`, `v2` etc and give them values derived from the variables in `g1`.
- See [SPARQL `BIND`](https://www.w3.org/TR/sparql11-query/#bind)
 
 * `with-graph` - require that a group pattern be matched by triples in a named
   graph instead of in the default graph. See [SPARQL `GRAPH` keyword](https://www.w3.org/TR/sparql11-query/#queryDataset)
@@ -158,6 +157,10 @@ various ways:
   
   `(optional (optional (optional g0 g1) g2) gn)`
 
+* `(bind [(? :v) expr (? :v2) expr2 ...] g1)` to define new variable
+ names `v`, `v2` etc and give them values derived from the variables in `g1`.
+ See [SPARQL `BIND`](https://www.w3.org/TR/sparql11-query/#bind)
+
 * `(grouping [(? :v1) (? :v2) ...] [(? :v3) '(min x) (? :v4) '(count y) ...] g0)`
 
    Group the solutions of `g0` into subsequences such that in each
@@ -169,10 +172,21 @@ various ways:
    
    https://www.w3.org/TR/sparql11-query/#groupby
 
+#### Functions
 
-If you need SPARQL composition operations which are not in this list,
-the most likely reason they aren't implemented is that I haven't got
-to them yet.  Patches, as they say, welcome.
+The `bind` and `grouping` operations allow you to call functions which
+take literals and variable references as parameters.  Write them as
+quoted lists: for example, 
+
+```
+     (bind [(? :evid)
+            '(iri (concat "http://example.com/events/" (struuid)))]
+           (group ...))
+```
+
+This is converted to the SPARQL
+`iri(concat("http://example.com/events/", struuid()))`.  A small
+selection of arithmetic functions are recognised and converted to infix.
 
 
 ### Solution sequence modifiers
