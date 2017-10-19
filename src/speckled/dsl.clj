@@ -88,20 +88,15 @@
 
 ;;; triples
 
-(with-test
-  (defn- triple-to-string [triple]
-    (str/join " " (map rdf/serialize-term triple)))
-
-  (binding [rdf-base-uri "http://f.com/"]
-    (is (= (triple-to-string [(u "a")
-                              (u "b")
-                              (u "c")])
-           "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))))
-
-
 (defmethod to-string-fragment (class []) [v]
-  (triple-to-string v))
+  (str/join " " (map rdf/serialize-term triple)))
 
+(deftest ^{:private true} triple-tested
+  (binding [rdf-base-uri "http://f.com/"]
+    (is (= (to-string-fragment [(u "a")
+                                (u "b")
+                                (u "c")])
+           "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))))
 
 ;; groups
 
