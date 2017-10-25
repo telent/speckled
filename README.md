@@ -157,6 +157,12 @@ haven't got to them yet.  Patches, as they say, welcome.
   
   `(optional (optional (optional g0 g1) g2) gn)`
 
+* `(filter-solns g expr )` acccepts a group pattern `g` and filters the
+  solutions it produces such that the result is only the solutions for
+  which the `expr` is true.  See SPARQL FILTER, but note that the
+  filter expression in Speckled is *outside* the group (i.e. [where it
+  logically ought to be](https://www.w3.org/TR/sparql11-query/#sparqlCollectFilters)) not inside it where SPARQL syntax expects it.
+
 * `(bind [(? :v) expr (? :v2) expr2 ...] g1)` to define new variable
  names `v`, `v2` etc and give them values derived from the variables in `g1`.
  See [SPARQL `BIND`](https://www.w3.org/TR/sparql11-query/#bind)

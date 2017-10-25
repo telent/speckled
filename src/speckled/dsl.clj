@@ -128,6 +128,22 @@
        "\n" (to-string-fragment (.group ng))
        "} "))
 
+(deftype FilteredGraph [graph expr])
+(derive FilteredGraph ::graph)
+(defn filter-solns [graph expr] (->FilteredGraph graph (->Expr expr)))
+(defmethod to-string-fragment FilteredGraph [g]
+  (str "{\n"
+       (to-string-fragment (.graph g))
+       " FILTER (" (to-string-fragment (.expr g)) ")\n"
+       "}\n"))
+
+(deftest ^{:private true} love-philtre
+  (let [g (filter-solns (group [(? :a) :foaf:weblog (? :blog)])
+                        '(contains ?blog "livejournal"))]
+    (is (= (to-string-fragment  g)
+           "{\n{\n?a <http://xmlns.com/foaf/0.1/weblog> ?blog}\n FILTER (contains(?blog, \"livejournal\"))\n}\n"))))
+
+
 (deftype Union [groups])
 (derive Union ::graph)
 (defn union [ & groups ] (->Union groups))
