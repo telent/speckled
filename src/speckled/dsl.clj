@@ -88,15 +88,30 @@
 
 ;;; triples
 
-(defmethod to-string-fragment (class []) [v]
-  (str/join " " (map rdf/serialize-term triple)))
+;;; supporting rdf list syntax was in the "no, why would you ever
+;;; need *that*?" category right up until I found that jena property
+;;; functions (notably, fulltext search on lucene indices) are invoked
+;;; this way
+
+(defmethod to-string-fragment (class []) [triple]
+  (let [element-to-string
+        (fn [e]
+          (if (list? e)
+            (str "(" (str/join " " (map rdf/serialize-term e)) ")")
+            (rdf/serialize-term e)))]
+    (str/join " " (map element-to-string triple))))
 
 (deftest ^{:private true} triple-tested
   (binding [rdf-base-uri "http://f.com/"]
     (is (= (to-string-fragment [(u "a")
                                 (u "b")
                                 (u "c")])
-           "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))))
+           "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))
+    (is (= (to-string-fragment [(u "a")
+                                :rdf:fulltext
+                                (list :rdfs:label "term" 25)])
+           "<http://f.com/a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#fulltext> (<http://www.w3.org/2000/01/rdf-schema#label> \"term\" 25)"
+           ))))
 
 ;; groups
 
