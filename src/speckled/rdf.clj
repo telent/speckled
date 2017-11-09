@@ -33,33 +33,6 @@
    "void" "http://rdfs.org/ns/void#"
    })
 
-(defn best-prefix [string]
-  (let [matches (filter (fn [[k v]] (.startsWith string v))  prefixes)]
-    (first (sort-by #(- (.length (second %))) matches))))
-
-(defn prefixize [string]
-  (if-let [[ns prefix] (best-prefix string)]
-    (keyword
-     (if (empty? ns)
-       (.substring string (.length prefix))
-       (str ns ":" (.substring string (.length prefix)))))
-    nil))
-
-(deftest prefixize-test
-  (binding [prefixes (assoc prefixes
-                            "shlv" "http://booksh.lv/ns#"
-                            "" "http://localhost:3030/"
-                            )]
-    (is (= (prefixize "http://booksh.lv/ns#shelfName") :shlv:shelfName)
-        "replaces with prefix when found")
-    (is (nil? (prefixize "https://booksh.lv/ns#shelfName"))
-        "returns nil when not found")
-    (is (= (prefixize "http://localhost:3030/hello") :hello))
-    (binding [prefixes (assoc prefixes "shlv1" "http://booksh.lv/ns#shelf")]
-      (is (= (prefixize "http://booksh.lv/ns#shelfName")
-             :shlv1:Name)
-          "picks longest match"))))
-
 (def ^:dynamic rdf-base-uri "http://booksh.lv/res/")
 
 ;; these are really supposed to be IRI not just URI but TBH I have
@@ -160,8 +133,7 @@
       :IRIREF
       (let [[_< [_iri_tok & letters] _>] (rest branch)
             iri (str/join letters)]
-        (or (prefixize iri)
-            (URI. iri)))
+        (URI. iri))
       :STRING_LITERAL (str/join (rest branch))
       :STRING_LITERAL_QUOTED (let [[_ string _] (rest branch)] string)
       :literal
