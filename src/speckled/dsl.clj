@@ -68,7 +68,7 @@
   (is (= (stringize-expr '?foo) "?foo"))
 
   (is (= (stringize-expr (u "http://f.com")) "<http://f.com>"))
-  (is (= (stringize-expr :rdf:type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
+  (is (= (stringize-expr :rdf/type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
 
   ;; variadic inline op
   (is (= (stringize-expr '(+ 1 2 3)) "((1 + 2) + 3)"))
@@ -108,8 +108,8 @@
                                 (u "c")])
            "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))
     (is (= (to-string-fragment [(u "a")
-                                :rdf:fulltext
-                                (list :rdfs:label "term" 25)])
+                                :rdf/fulltext
+                                (list :rdfs/label "term" 25)])
            "<http://f.com/a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#fulltext> (<http://www.w3.org/2000/01/rdf-schema#label> \"term\" 25)"
            ))))
 
@@ -124,15 +124,15 @@
 
 (deftest ^{:private true} rdf-formatting
   (binding [rdf-base-uri "http://f.com/"
-            rdf/prefixes (assoc rdf/prefixes "shlv" "http://booksh.lv/ns#")]
+            rdf/prefixes (assoc rdf/prefixes "shlv" "http://example.com/ns#")]
     (is (= (to-string-fragment "{ ?n ?v ?o }") "{ ?n ?v ?o }"))
     (let [g (group [(u "a") (u "b") (u "c")])]
       (is (= (to-string-fragment g)
              "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c>}\n")))
     (let [g2 (group [(u "a") (u "b") (u "c")]
-                    [:shlv:a :shlv:b (? :done)])]
+                    [:shlv/a :shlv/b (? :done)])]
       (is (= (to-string-fragment g2)
-             "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://booksh.lv/ns#a> <http://booksh.lv/ns#b> ?done}\n")))))
+             "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://example.com/ns#a> <http://example.com/ns#b> ?done}\n")))))
 
 
 (deftype NamedGraph [graphname group])
@@ -153,7 +153,7 @@
        "}\n"))
 
 (deftest ^{:private true} love-philtre
-  (let [g (filter-solns (group [(? :a) :foaf:weblog (? :blog)])
+  (let [g (filter-solns (group [(? :a) :foaf/weblog (? :blog)])
                         '(contains ?blog "livejournal"))]
     (is (= (to-string-fragment  g)
            "{\n{\n?a <http://xmlns.com/foaf/0.1/weblog> ?blog}\n FILTER (contains(?blog, \"livejournal\"))\n}\n"))))
@@ -185,7 +185,7 @@
 (deftest ^{:private true} union-city-blues
   (binding [rdf-base-uri "http://f.com/"]
     (let [u (union (group [(u "a") (u "b") (u "c")])
-                   (group [(? :s) :rdf:a "foo"]))]
+                   (group [(? :s) :rdf/a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))))
 
@@ -204,12 +204,12 @@
 (deftest ^{:private true} gimme-options
   (binding [rdf-base-uri "http://f.com/"]
     (let [u (optional (group [(u "a") (u "b") (u "c")])
-                      (group [(? :s) :rdf:a "foo"]))]
+                      (group [(? :s) :rdf/a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))
     (let [u (optional (group [(u "a") (u "b") (u "c")])
-                      (group [(u "b") :foaf:bae (? :s)])
-                      (group [(? :s) :rdf:a "foo"]))]
+                      (group [(u "b") :foaf/bae (? :s)])
+                      (group [(? :s) :rdf/a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { <http://f.com/b> <http://xmlns.com/foaf/0.1/bae> ?s} } OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }"
              )))))
@@ -241,11 +241,11 @@
 (deftest ^{:private true} bind-us-together
   (binding [rdf-base-uri "http://f.com/"]
     (let [b (bind [(? :foo) '(concat (* (random) 2) ?s)]
-                  (group [(? :s) :rdf:a "foo"]))]
+                  (group [(? :s) :rdf/a "foo"]))]
       (is (= (to-string-fragment b)
              "{ {\n?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"}\n BIND(concat((random() * 2), ?s) AS ?foo)\n}\n")))
     (let [b (bind [(? :foo ) "19281"]
-                  (group [(? :s) :rdf:a "foo"]))]
+                  (group [(? :s) :rdf/a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment b))
              ;; an answer without the inner { } would be just as acceptable
              ;; here, fwiw
@@ -321,15 +321,15 @@
 
 
 (deftest ^{:private true} rdf-solve
-  (let [g (group [(? :n) :foaf:copyOf (? :ed)]
-                 [(? :n) :rdfs:label (? :title)])]
+  (let [g (group [(? :n) :foaf/copyOf (? :ed)]
+                 [(? :n) :rdfs/label (? :title)])]
     (is (equal-but-for-whitespace
          (to-string-fragment (solve g))
          "WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))
     (is (equal-but-for-whitespace
          (to-string-fragment
-          (solve g [(u "http://booksh.lv/bnbgraph")]))
-         "FROM <http://booksh.lv/bnbgraph>\n WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"
+          (solve g [(u "http://example.com/bnbgraph")]))
+         "FROM <http://example.com/bnbgraph>\n WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"
          ))))
 
 ;; Operations on solution sequences to filter/rearrange/transform them
@@ -355,15 +355,15 @@
        (to-string-fragment
         (project (map ? [:n :ed :title])
                  (solve
-                  (group [(? :n) :foaf:copyOf (? :ed)]
-                         [(? :n) :rdfs:label (? :title)]))))
+                  (group [(? :n) :foaf/copyOf (? :ed)]
+                         [(? :n) :rdfs/label (? :title)]))))
        "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))
     (is (equal-but-for-whitespace
        (to-string-fragment
         (project (map ? [:n :ed :title])
                  ;; implicit solve
-                 (group [(? :n) :foaf:copyOf (? :ed)]
-                        [(? :n) :rdfs:label (? :title)])))
+                 (group [(? :n) :foaf/copyOf (? :ed)]
+                        [(? :n) :rdfs/label (? :title)])))
        "SELECT ?n ?ed ?title WHERE {\n?n <http://xmlns.com/foaf/0.1/copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n")))
 
 (deftype Aggregate [grouping-variables aggregating-variables solution])
@@ -402,13 +402,13 @@
                      [(? :bikes) '(count ?framenumber)
                       (? :weight) '(sum ?weight)
                       (? :value) '(sum ?cost)]
-                     (group [(? :person) :b:named (? :lastname)]
-                            [(? :person) :b:livesAt (? :address)]
-                            [(? :address) :b:hasPostcode (? :postcode)]
-                            [(? :person) :b:owns (? :bike)]
-                            [(? :bike) :b:hasFrameNumber (? :framenumber)]
-                            [(? :bike) :b:weighs (? :weight)]
-                            [(? :bike) :b:costs (? :cost)])))]
+                     (group [(? :person) :b/named (? :lastname)]
+                            [(? :person) :b/livesAt (? :address)]
+                            [(? :address) :b/hasPostcode (? :postcode)]
+                            [(? :person) :b/owns (? :bike)]
+                            [(? :bike) :b/hasFrameNumber (? :framenumber)]
+                            [(? :bike) :b/weighs (? :weight)]
+                            [(? :bike) :b/costs (? :cost)])))]
       (is (equal-but-for-whitespace
            subject
            (str
@@ -451,7 +451,7 @@
        (to-string-fragment
         (limit
          (project (map ? [:a :b])
-                 (solve (group [(? :a) :rdfs:label (? :b)])))
+                 (solve (group [(? :a) :rdfs/label (? :b)])))
          3))
        "SELECT ?a ?b WHERE { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} LIMIT 3")))
 
@@ -504,16 +504,16 @@
 (defn construct [template soln-seq] (->Construction template soln-seq))
 
 (deftest ^{:private true} rdf-construction
-  (binding [rdf/prefixes (assoc rdf/prefixes "shlv" "http://booksh.lv/ns#")]
+  (binding [rdf/prefixes (assoc rdf/prefixes "shlv" "http://example.com/ns#")]
     (is (equal-but-for-whitespace
          (to-string-fragment
-          (construct (group [(? :n) :shlv:isA :shlv:book]
-                            [(? :n) :shlv:edition (? :ed)]
-                            [(? :n) :shlv:title (? :title)])
+          (construct (group [(? :n) :shlv/isA :shlv/book]
+                            [(? :n) :shlv/edition (? :ed)]
+                            [(? :n) :shlv/title (? :title)])
                      (solve
-                      (group [(? :n) :shlv:copyOf (? :ed)]
-                             [(? :n) :rdfs:label (? :title)]))))
-         "CONSTRUCT {\n?n <http://booksh.lv/ns#isA> <http://booksh.lv/ns#book> .\n?n <http://booksh.lv/ns#edition> ?ed .\n?n <http://booksh.lv/ns#title> ?title}\n WHERE {\n?n <http://booksh.lv/ns#copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))))
+                      (group [(? :n) :shlv/copyOf (? :ed)]
+                             [(? :n) :rdfs/label (? :title)]))))
+         "CONSTRUCT {\n?n <http://example.com/ns#isA> <http://example.com/ns#book> .\n?n <http://example.com/ns#edition> ?ed .\n?n <http://example.com/ns#title> ?title}\n WHERE {\n?n <http://example.com/ns#copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))))
 
 (deftype InsertData [graph])
 (derive InsertData ::update-form)
@@ -577,9 +577,9 @@
 (deftest ^{:private true} select-test
   (let [s (->string
            (group [(? :a)
-                   :rdfs:label
+                   :rdfs/label
                    "Bertrand Russell Peace Foundation"]
-                  [(? :a) :rdf:type :dct:Agent]
+                  [(? :a) :rdf/type :dct/Agent]
                   ))]
     (is (.contains s "PREFIX rdf:"))
     (is (equal-but-for-whitespace
@@ -595,9 +595,9 @@ WHERE {
             (project
              [(? :a)]
              (group [(? :a)
-                     :rdfs:label
+                     :rdfs/label
                      "Bertrand Russell Peace Foundation"]
-                    [(? :a) :rdf:type :dct:Agent]
+                    [(? :a) :rdf/type :dct/Agent]
                     ))))]
     (is (.contains s "PREFIX rdf:"))
     (is (equal-but-for-whitespace
@@ -611,9 +611,9 @@ WHERE {
 (deftest ^{:private true} implicit-select-test
   (let [s (->string
            (group [(? :a)
-                   :rdfs:label
+                   :rdfs/label
                    "Bertrand Russell Peace Foundation"]
-                  [(? :a) :rdf:type :dct:Agent]
+                  [(? :a) :rdf/type :dct/Agent]
                   ))]
     (is (.contains s "PREFIX rdf:"))
     (is (equal-but-for-whitespace
@@ -628,30 +628,30 @@ WHERE {
    (equal-form
     (->string
      (insert
-      (group [(URI. "http://example.com") :foaf:nick "granddad"])
-      (solve (group [(? :a) :rdfs:label (? :b)]))))
+      (group [(URI. "http://example.com") :foaf/nick "granddad"])
+      (solve (group [(? :a) :rdfs/label (? :b)]))))
     "INSERT { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"} WHERE  { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} "))
   (is
    (equal-form
     (->string
      (insert
-      (group [(URI. "http://example.com") :foaf:nick "granddad"])))
+      (group [(URI. "http://example.com") :foaf/nick "granddad"])))
     "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"}"))
   (is
    (equal-form
     (->string
      (substitute
-      (group [(? :person) :rdfs:label "Old boss"])
-      (group [(? :person) :rdfs:label "New boss"])
-      (solve (group [(? :person) :rdfs:label "New boss"]))))
+      (group [(? :person) :rdfs/label "Old boss"])
+      (group [(? :person) :rdfs/label "New boss"])
+      (solve (group [(? :person) :rdfs/label "New boss"]))))
     "DELETE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"Old boss\"}\n\nINSERT {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n\nWHERE {\n?person <http://www.w3.org/2000/01/rdf-schema#label> \"New boss\"}\n")))
 
 
 
 (deftest ^{:private true} test-construct-query
   (let [sparql (construct
-                (group [(? :n) :rdfs:label "hey"]
-                       [(? :n) :foaf:familyName (? :name)])
+                (group [(? :n) :rdfs/label "hey"]
+                       [(? :n) :foaf/familyName (? :name)])
                 (limit
                  (solve (group [(? :n) (? :v) (? :name)]))
                  3))]

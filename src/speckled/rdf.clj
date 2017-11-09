@@ -33,7 +33,7 @@
    "void" "http://rdfs.org/ns/void#"
    })
 
-(def ^:dynamic rdf-base-uri "http://booksh.lv/res/")
+(def ^:dynamic rdf-base-uri "http://purl.org/")
 
 ;; these are really supposed to be IRI not just URI but TBH I have
 ;; NFA WTF the difference is. BRB
@@ -41,20 +41,19 @@
 (defmulti u class)
 (defmethod u URI [url-thing] url-thing)
 (defmethod u URL [url-thing] (.toURI url-thing))
-(defmethod u clojure.lang.Keyword [url-thing]
-  (let [[ns_ suffix_] (str/split (name url-thing) #":" 2)
-        ns (if suffix_ ns_ "")
-        suffix (or suffix_ ns_)]
+(defmethod u clojure.lang.Keyword [k]
+  (let [ns (or (namespace k) "")
+        n (name k)]
     (when-let [root (get prefixes ns)]
-      (URI. (str root suffix)))))
+      (URI. (str root n)))))
 (defmethod u String [url-thing]
   (.resolve (URI. rdf-base-uri) url-thing))
 
 (deftest uri-parsing
-  (binding [rdf-base-uri "http://localhost.booksh.lv/res/"
+  (binding [rdf-base-uri "http://localhost.example.com/res/"
             prefixes (assoc prefixes "" "http://localhost:3030/")]
-    (is (= (u :rdfs:label) (URI. "http://www.w3.org/2000/01/rdf-schema#label")))
-    (is (= (u "shelf/42") (URI. "http://localhost.booksh.lv/res/shelf/42")))
+    (is (= (u :rdfs/label) (URI. "http://www.w3.org/2000/01/rdf-schema#label")))
+    (is (= (u "shelf/42") (URI. "http://localhost.example.com/res/shelf/42")))
     (is (= (u "http://example.com/") (URI. "http://example.com/")))
     (is (= (u :foo) (URI. "http://localhost:3030/foo")))
     ))
@@ -141,7 +140,7 @@
             lang (and (= (first lang-or-caret) :LANGTAG)
                       (str/join (rest (rest lang-or-caret))))
             iri (and (= lang-or-caret "^^") iri)]
-        (make-literal s (u (or iri  :xsd:string))))
+        (make-literal s (u (or iri  :xsd/string))))
       :WS ""
       :UCHAR (let [[_ & hexs] (rest branch)]
                (String.
