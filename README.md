@@ -51,9 +51,9 @@ fairly simple example to show it off a bit
       (project [(? :a)]
                (solve
                 (group [(? :a)
-                        :rdfs:label
+                        :rdfs/label
                         "Bertrand Russell Peace Foundation"]
-                       [(? :a) :rdf:type :dct:Agent] )))))
+                       [(? :a) :rdf/type :dct/Agent] )))))
     =>
     PREFIX owl: <http://www.w3.org/2002/07/owl#>
     PREFIX rdau: <http://rdaregistry.info/Elements/u/>
