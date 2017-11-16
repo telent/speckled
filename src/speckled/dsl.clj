@@ -556,23 +556,13 @@
   (->Replacement deletions insertions (rdf-to-soln-seq soln-seq)))
 
 
-
-;; prepend prefix declarations
-
-(defn- declare-prefixes [query]
-  (let [ns-string (str/join "\n"
-                            (map (fn [[k v]] (str "PREFIX " (name k) ": "
-                                                  (rdf/serialize-term (u v))))
-                                 rdf/prefixes))]
-    (str ns-string "\n"
-         "BASE " (rdf/serialize-term (u rdf/rdf-base-uri)) "\n\n"
-         query)))
+(defn- declare-prefixes [query] query)
 
 (defn ->string [sparql]
   (-> sparql
       rdf-to-top-level-form
       to-string-fragment
-      declare-prefixes))
+      ))
 
 (deftest ^{:private true} select-test
   (let [s (->string
@@ -581,7 +571,6 @@
                    "Bertrand Russell Peace Foundation"]
                   [(? :a) :rdf/type :dct/Agent]
                   ))]
-    (is (.contains s "PREFIX rdf:"))
     (is (equal-but-for-whitespace
          (delete-prefixes s)
          "SELECT *
@@ -599,7 +588,6 @@ WHERE {
                      "Bertrand Russell Peace Foundation"]
                     [(? :a) :rdf/type :dct/Agent]
                     ))))]
-    (is (.contains s "PREFIX rdf:"))
     (is (equal-but-for-whitespace
          (delete-prefixes s)
          "SELECT ?a WHERE
@@ -615,7 +603,6 @@ WHERE {
                    "Bertrand Russell Peace Foundation"]
                   [(? :a) :rdf/type :dct/Agent]
                   ))]
-    (is (.contains s "PREFIX rdf:"))
     (is (equal-but-for-whitespace
          (delete-prefixes s)
          "SELECT * WHERE
