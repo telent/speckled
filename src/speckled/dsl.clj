@@ -7,13 +7,10 @@
   (:import [org.apache.commons.codec.net URLCodec]
            [java.text SimpleDateFormat]
            [java.net URL URI])
-  (:require [clojure.string :as str]
-            [clojure.java.io :as io]
-            [clojure.xml :as xml]
-            [clojure.zip :as zip]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.test :as test :refer [is deftest with-test]]
-            [speckled.rdf :as rdf :refer [u]])
-  (:use [clojure.data.zip.xml :only (attr text xml-> xml1-> )]))
+            [speckled.rdf :as rdf :refer [u]]))
 
 
 ;;; The rdf namespace deals only with n-triples, which does not support
