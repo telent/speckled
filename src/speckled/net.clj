@@ -7,7 +7,7 @@
             [clojure.xml :as xml]
             [clojure.zip :as zip]
             [clojure.test :as test :refer [is deftest with-test]]
-            [speckled.rdf :as rdf :refer [u rdf-base-uri]]
+            [speckled.rdf :as rdf :refer [u ]]
             [speckled.dsl :as dsl :refer [->string]])
   (:use [clojure.data.zip.xml :only (attr text xml-> xml1-> )]))
 
