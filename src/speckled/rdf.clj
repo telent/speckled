@@ -14,49 +14,15 @@
 (defn url-encode [term]
   (let [u (URLCodec.)] (.encode u term)))
 
-(def ^:dynamic prefixes
-  {
-   "bibo" "http://purl.org/ontology/bibo/"
-   "bio" "http://purl.org/vocab/bio/0.1/"
-   "dct" "http://purl.org/dc/terms/"
-   "event" "http://purl.org/NET/c4dm/event.owl#"
-   "foaf" "http://xmlns.com/foaf/0.1/"
-   "geo" "http://www.w3.org/2003/01/geo/wgs84_pos#"
-   "org" "http://www.w3.org/ns/org#"
-   "owl" "http://www.w3.org/2002/07/owl#"
-   "rdau" "http://rdaregistry.info/Elements/u/"
-   "madsrdf" "http://www.loc.gov/mads/rdf/v1#"
-   "rdf" "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   "rdfs" "http://www.w3.org/2000/01/rdf-schema#"
-   "skos" "http://www.w3.org/2004/02/skos/core#"
-   "xsd" "http://www.w3.org/2001/XMLSchema#"
-   "void" "http://rdfs.org/ns/void#"
-   })
-
-(def ^:dynamic rdf-base-uri "http://purl.org/")
-
 ;; these are really supposed to be IRI not just URI but TBH I have
 ;; NFA WTF the difference is. BRB
 
 (defmulti u class)
 (defmethod u URI [url-thing] url-thing)
 (defmethod u URL [url-thing] (.toURI url-thing))
-(defmethod u clojure.lang.Keyword [k]
-  (let [ns (or (namespace k) "")
-        n (name k)]
-    (when-let [root (get prefixes ns)]
-      (URI. (str root n)))))
-(defmethod u String [url-thing]
-  (.resolve (URI. rdf-base-uri) url-thing))
+(defmethod u String [url-thing] (URI. url-thing))
 
-(deftest uri-parsing
-  (binding [rdf-base-uri "http://localhost.example.com/res/"
-            prefixes (assoc prefixes "" "http://localhost:3030/")]
-    (is (= (u :rdfs/label) (URI. "http://www.w3.org/2000/01/rdf-schema#label")))
-    (is (= (u "shelf/42") (URI. "http://localhost.example.com/res/shelf/42")))
-    (is (= (u "http://example.com/") (URI. "http://example.com/")))
-    (is (= (u :foo) (URI. "http://localhost:3030/foo")))
-    ))
+(defn xsd [x] (u (str "http://www.w3.org/2001/XMLSchema#" x)))
 
 (defmulti serialize-term class)
 
@@ -115,15 +81,15 @@
 
 (defmulti make-literal (fn [string iriref] iriref))
 
-(defmethod make-literal (u :xsd:boolean) [string _]
+(defmethod make-literal (xsd "boolean") [string _]
   (case string
     "true" true
     "false" false))
 
-(defmethod make-literal (u :xsd:string) [string _]
+(defmethod make-literal (xsd "string") [string _]
   string)
 
-(defmethod make-literal (u :xsd:dateTime) [string _]
+(defmethod make-literal (xsd "dateTime") [string _]
   (from-iso8601 string))
 
 (defn visit-node [branch]
@@ -140,7 +106,7 @@
             lang (and (= (first lang-or-caret) :LANGTAG)
                       (str/join (rest (rest lang-or-caret))))
             iri (and (= lang-or-caret "^^") iri)]
-        (make-literal s (u (or iri  :xsd/string))))
+        (make-literal s (or iri  (xsd "string"))))
       :WS ""
       :UCHAR (let [[_ & hexs] (rest branch)]
                (String.

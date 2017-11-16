@@ -1,3 +1,8 @@
+;;;; SPARQL query generation
+
+;;;; We expect this ns will generally be used with `:refer :all`, so
+;;;; it's important to keep vars private unless they form part of the API
+
 (ns speckled.dsl
   (:import [org.apache.commons.codec.net URLCodec]
            [java.text SimpleDateFormat]
@@ -7,14 +12,34 @@
             [clojure.xml :as xml]
             [clojure.zip :as zip]
             [clojure.test :as test :refer [is deftest with-test]]
-            [speckled.rdf :as rdf :refer [u rdf-base-uri]])
+            [speckled.rdf :as rdf :refer [u]])
   (:use [clojure.data.zip.xml :only (attr text xml-> xml1-> )]))
 
 
-;;;; SPARQL query generation
+;;; The rdf namespace deals only with n-triples, which does not support
+;;; prefixed names.  But we can extend it ...
 
-;;;; We expect this ns will generally be used with `:refer :all`, so
-;;;; it's important to keep vars private unless they form part of the API
+(defrecord PrefixedName [prefix name])
+
+(defmethod rdf/u clojure.lang.Keyword [k]
+  (PrefixedName. (namespace k) (name k)))
+
+(def ^:dynamic prefixes
+  {"dct" "http://purl.org/dc/terms/"
+   "foaf" "http://xmlns.com/foaf/0.1/"
+   "owl" "http://www.w3.org/2002/07/owl#"
+   "rdf" "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   "rdfs" "http://www.w3.org/2000/01/rdf-schema#"
+   "xsd" "http://www.w3.org/2001/XMLSchema#"
+   "void" "http://rdfs.org/ns/void#"})
+
+(defmethod rdf/serialize-term PrefixedName [n]
+  (let [prefix (:prefix n)]
+    (rdf/serialize-term (u (str (get prefixes prefix) (:name n))))))
+
+(deftest serialize-prefixed-name-test
+  (is (= (rdf/serialize-term (u :rdf/type))
+         "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>")))
 
 
 ;;; Variables and individual terms
@@ -102,16 +127,15 @@
     (str/join " " (map element-to-string triple))))
 
 (deftest ^{:private true} triple-tested
-  (binding [rdf-base-uri "http://f.com/"]
-    (is (= (to-string-fragment [(u "a")
-                                (u "b")
-                                (u "c")])
-           "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))
-    (is (= (to-string-fragment [(u "a")
-                                :rdf/fulltext
-                                (list :rdfs/label "term" 25)])
-           "<http://f.com/a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#fulltext> (<http://www.w3.org/2000/01/rdf-schema#label> \"term\" 25)"
-           ))))
+  (is (= (to-string-fragment [(u "http://f.com/a")
+                              (u "http://f.com/b")
+                              (u "http://f.com/c")])
+         "<http://f.com/a> <http://f.com/b> <http://f.com/c>"))
+  (is (= (to-string-fragment [(u "http://f.com/a")
+                              :rdf/fulltext
+                              (list :rdfs/label "term" 25)])
+         "<http://f.com/a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#fulltext> (<http://www.w3.org/2000/01/rdf-schema#label> \"term\" 25)"
+         )))
 
 ;; groups
 
@@ -123,16 +147,17 @@
        "}\n"))
 
 (deftest ^{:private true} rdf-formatting
-  (binding [rdf-base-uri "http://f.com/"
-            rdf/prefixes (assoc rdf/prefixes "shlv" "http://example.com/ns#")]
+  (binding [prefixes (assoc prefixes "ex" "http://example.com/ns#")]
     (is (= (to-string-fragment "{ ?n ?v ?o }") "{ ?n ?v ?o }"))
-    (let [g (group [(u "a") (u "b") (u "c")])]
-      (is (= (to-string-fragment g)
-             "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c>}\n")))
-    (let [g2 (group [(u "a") (u "b") (u "c")]
-                    [:shlv/a :shlv/b (? :done)])]
-      (is (= (to-string-fragment g2)
-             "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://example.com/ns#a> <http://example.com/ns#b> ?done}\n")))))
+    (let [a (u "http://f.com/a")
+          b (u "http://f.com/b")
+          c (u "http://f.com/c")]
+      (is (= (to-string-fragment (group [a b c]))
+             "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c>}\n"))
+      (let [g2 (group [a b c]
+                      [:ex/a :ex/b (? :done)])]
+        (is (= (to-string-fragment g2)
+               "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://example.com/ns#a> <http://example.com/ns#b> ?done}\n"))))))
 
 
 (deftype NamedGraph [graphname group])
@@ -183,11 +208,10 @@
 
 
 (deftest ^{:private true} union-city-blues
-  (binding [rdf-base-uri "http://f.com/"]
-    (let [u (union (group [(u "a") (u "b") (u "c")])
-                   (group [(? :s) :rdf/a "foo"]))]
-      (is (= (collapse-whitespace (to-string-fragment u))
-             "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))))
+  (let [u (union (group [(u "http://f.com/a") (u "http://f.com/b") (u "http://f.com/c")])
+                 (group [(? :s) :rdf/a "foo"]))]
+    (is (= (collapse-whitespace (to-string-fragment u))
+           "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} UNION { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }"))))
 
 
 (deftype Optional [required optional])
@@ -202,13 +226,13 @@
        " }"))
 
 (deftest ^{:private true} gimme-options
-  (binding [rdf-base-uri "http://f.com/"]
-    (let [u (optional (group [(u "a") (u "b") (u "c")])
+  (let [[a b c] (map #(u (str "http://f.com/" %)) ["a" "b" "c"])]
+    (let [u (optional (group [a b c])
                       (group [(? :s) :rdf/a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }")))
-    (let [u (optional (group [(u "a") (u "b") (u "c")])
-                      (group [(u "b") :foaf/bae (? :s)])
+    (let [u (optional (group [a b c])
+                      (group [b :foaf/bae (? :s)])
                       (group [(? :s) :rdf/a "foo"]))]
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { <http://f.com/b> <http://xmlns.com/foaf/0.1/bae> ?s} } OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }"
@@ -239,17 +263,16 @@
        ")\n}\n"))
 
 (deftest ^{:private true} bind-us-together
-  (binding [rdf-base-uri "http://f.com/"]
-    (let [b (bind [(? :foo) '(concat (* (random) 2) ?s)]
-                  (group [(? :s) :rdf/a "foo"]))]
-      (is (= (to-string-fragment b)
-             "{ {\n?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"}\n BIND(concat((random() * 2), ?s) AS ?foo)\n}\n")))
-    (let [b (bind [(? :foo ) "19281"]
-                  (group [(? :s) :rdf/a "foo"]))]
-      (is (= (collapse-whitespace (to-string-fragment b))
-             ;; an answer without the inner { } would be just as acceptable
-             ;; here, fwiw
-             "{ { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo) }")))))
+  (let [b (bind [(? :foo) '(concat (* (random) 2) ?s)]
+                (group [(? :s) :rdf/a "foo"]))]
+    (is (= (to-string-fragment b)
+           "{ {\n?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"}\n BIND(concat((random() * 2), ?s) AS ?foo)\n}\n")))
+  (let [b (bind [(? :foo ) "19281"]
+                (group [(? :s) :rdf/a "foo"]))]
+    (is (= (collapse-whitespace (to-string-fragment b))
+           ;; an answer without the inner { } would be just as acceptable
+           ;; here, fwiw
+           "{ { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo) }")))))
 
 
 (deftype Values [variables rows])
@@ -271,25 +294,24 @@
        "}"))
 
 (deftest ^{:private true} the-value-of-everything
-  (binding [rdf-base-uri "http://f.com/"]
-    (let [b
-          (values [(? :foo) (? :bar)]
-                  [["black"  "white"]
-                   ["bark" "bite"]
-                   ["shark" "hey man jaws was never my scene"]])]
-      (is (= (collapse-whitespace (to-string-fragment b))
-             (collapse-whitespace
-              "VALUES (?foo ?bar) {
+  (let [b
+        (values [(? :foo) (? :bar)]
+                [["black"  "white"]
+                 ["bark" "bite"]
+                 ["shark" "hey man jaws was never my scene"]])]
+    (is (= (collapse-whitespace (to-string-fragment b))
+           (collapse-whitespace
+            "VALUES (?foo ?bar) {
  ( \"black\" \"white\" )
  ( \"bark\" \"bite\" )
  ( \"shark\" \"hey man jaws was never my scene\" )}"))))
-    (let [b
-          (values [(? :foo) (? :bar)]
-                  [["black"  (u "http://www.example.com/")]])]
-      (is (= (collapse-whitespace (to-string-fragment b))
-             (collapse-whitespace
-              "VALUES (?foo ?bar) {
- ( \"black\" <http://www.example.com/> )}"))))))
+  (let [b
+        (values [(? :foo) (? :bar)]
+                [["black"  (u "http://www.example.com/")]])]
+    (is (= (collapse-whitespace (to-string-fragment b))
+           (collapse-whitespace
+            "VALUES (?foo ?bar) {
+ ( \"black\" <http://www.example.com/> )}")))))
 
 
 ;; solve to find the values of variables appearing in a group
@@ -394,8 +416,7 @@
          (to-string-fragment (.grouping-variables v)))))
 
 (deftest ^{:private true} group-by-test
-  (binding [rdf-base-uri "http://f.com/"
-            rdf/prefixes (assoc rdf/prefixes "b" "http://f.com/ns#")]
+  (binding [prefixes (assoc prefixes "b" "http://f.com/ns#")]
     (let [subject
           (to-string-fragment
            (grouping [(? :lastname) (? :postcode)]
@@ -504,7 +525,7 @@
 (defn construct [template soln-seq] (->Construction template soln-seq))
 
 (deftest ^{:private true} rdf-construction
-  (binding [rdf/prefixes (assoc rdf/prefixes "shlv" "http://example.com/ns#")]
+  (binding [prefixes (assoc prefixes "shlv" "http://example.com/ns#")]
     (is (equal-but-for-whitespace
          (to-string-fragment
           (construct (group [(? :n) :shlv/isA :shlv/book]
