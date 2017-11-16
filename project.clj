@@ -4,10 +4,6 @@
   :repositories [["snapshots" {:url  "https://clojars.org/repo"
                                :username "telent"
                                :password :env/CLOJARS_PASSWORD}]]
-  :local-repo ~(or
-                (System/getenv "M2REPOSITORY")
-                (.toString (clojure.java.io/file (System/getenv "HOME")
-                                                 ".m2/repository")))
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
@@ -17,7 +13,7 @@
                  [org.clojure/data.zip "0.1.1"]
                  [prismatic/schema "1.0.5"]
                  ]
-  :profiles {:repl {:plugins [[cider/cider-nrepl "0.12.0"]]}
+  :profiles {
              :test {:dependencies [[clj-http "2.1.0"]]}
              :dev {:dependencies [[clj-http "2.1.0"]]}}
 
