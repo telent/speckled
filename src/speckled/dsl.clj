@@ -272,7 +272,7 @@
     (is (= (collapse-whitespace (to-string-fragment b))
            ;; an answer without the inner { } would be just as acceptable
            ;; here, fwiw
-           "{ { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo) }")))))
+           "{ { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} BIND(\"19281\" AS ?foo) }"))))
 
 
 (deftype Values [variables rows])
