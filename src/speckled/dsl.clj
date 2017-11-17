@@ -253,12 +253,6 @@
 (defn- equal-but-for-whitespace [a b]
   (= (collapse-whitespace a) (collapse-whitespace b)))
 
-(defn- equal-form
-  "For test assertions: compare arguments after removing PREFIX and BASE directives from each"
-  [a b]
-  (equal-but-for-whitespace a b ))
-
-
 (deftest ^{:private true} union-city-blues
   (let [u (union (group [(u "http://f.com/a") (u "http://f.com/b") (u "http://f.com/c")])
                  (group [(? :s) :rdf/a "foo"]))]
@@ -684,20 +678,20 @@ WHERE {
 
 (deftest ^{:private true} insert-test
   (is
-   (equal-form
+   (equal-but-for-whitespace
     (->string
      (insert
       (group [(URI. "http://example.com") :foaf/nick "granddad"])
       (solve (group [(? :a) :rdfs/label (? :b)]))))
     "INSERT { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"} WHERE  { ?a <http://www.w3.org/2000/01/rdf-schema#label> ?b} "))
   (is
-   (equal-form
+   (equal-but-for-whitespace
     (->string
      (insert
       (group [(URI. "http://example.com") :foaf/nick "granddad"])))
     "INSERT DATA { \n<http://example.com> <http://xmlns.com/foaf/0.1/nick> \"granddad\"}"))
   (is
-   (equal-form
+   (equal-but-for-whitespace
     (->string
      (substitute
       (group [(? :person) :rdfs/label "Old boss"])
