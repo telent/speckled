@@ -139,17 +139,94 @@
                "{\n<http://f.com/a> <http://f.com/b> <http://f.com/c> .\n<http://example.com/ns#a> <http://example.com/ns#b> ?done}\n"))))))
 
 
-(deftype NamedGraph [graphname group])
+(defrecord NamedGraph [graphname group])
 (derive NamedGraph ::graph)
 (defn with-graph [graphname group] (->NamedGraph graphname group))
+(s/fdef with-graph
+        ::args (s/cat
+                (s/or ::uri ::uri
+                      ::variable ::variable)
+                ::group))
+
 (defmethod to-string-fragment NamedGraph [ng]
   (str "{ GRAPH " (rdf/serialize-term (.graphname ng))
        "\n" (to-string-fragment (.group ng))
        "} "))
 
-(deftype FilteredGraph [graph expr])
+;;; Expressions (we will need these for filter, bind, and rename operations)
+
+(deftype Expr [term])
+
+(def inline-operators (set (map name '(+ - * / = < > <= >=))))
+
+(s/def ::expr-form (s/or ::value ::literal
+                         ::var #(and (symbol? %) (= (first (name %)) \?))
+                         ::expr (s/cat ::op symbol?
+                                       ::args (s/* ::expr-form))))
+
+(defn stringize-expr [term]
+  (cond
+    (seq? term)
+    (let [[op & args] term
+          op (name op)]
+      (if (contains? inline-operators op)
+        ;; (+ a b c d) => "((((a) + b) + c) + d)"
+        (reduce (fn [e r]
+                  (if e
+                    (str "(" e " " op " " r ")")
+                    (str "(" r ")")))
+                (map stringize-expr args))
+        (str op "(" (str/join ", " (map stringize-expr args)) ")")))
+
+    ;; not at all sure it is sensible to support this syntax, need to think
+    ;; about it some more.  But if we don't, user needs to antiquote
+    ;; variables in quoted expressions :-(
+    (and (symbol? term) (= (first (name term)) \?))
+    (name term)
+
+    :else
+    (rdf/serialize-term term)))
+
+(s/fdef stringize-expr :args (s/cat ::form ::expr-form))
+
+(deftest ^{:private true} express-yourself
+  (is (= (stringize-expr '7) "7"))
+  (is (= (stringize-expr '?foo) "?foo"))
+
+  (is (= (stringize-expr (u "http://f.com")) "<http://f.com>"))
+  (is (= (stringize-expr :rdf/type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
+
+  ;; variadic inline op
+  (is (= (stringize-expr '(+ 1 2 3)) "((1 + 2) + 3)"))
+  (is (= (stringize-expr '(+ 1 2 3 17)) "(((1 + 2) + 3) + 17)"))
+
+  ;; nested operations
+  (is (= (stringize-expr '(+ 1 (- 2 3) 4)) "((1 + (2 - 3)) + 4)"))
+
+  ;; function call
+  (is (= (stringize-expr '(fn 6 7 8)) "fn(6, 7, 8)"))
+  (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, (7 + 7), 8)"))
+  )
+
+(defmethod to-string-fragment Expr [e]
+  (stringize-expr (.term e)))
+
+(s/def ::expr (partial instance? Expr))
+(s/fdef ->Expr :args (s/cat ::form ::expr-form))
+
+(defrecord FilteredGraph [graph expr])
 (derive FilteredGraph ::graph)
-(defn filter-solns [graph expr] (->FilteredGraph graph (->Expr expr)))
+(s/def ::filtered-graph (s/and #(instance? FilteredGraph %)
+                               (s/keys :req-un [::graph ::expr])))
+(defn filter-solns [graph expr]
+  {:post [(s/valid? ::filtered-graph %)]}
+  (->FilteredGraph graph (->Expr expr)))
+(s/fdef filter-solns
+        :args (s/cat ::graph #(isa? (class %) ::graph)
+                     ::form ::expr-form)
+        :ret ::filtered-graph)
+
+
 (defmethod to-string-fragment FilteredGraph [g]
   (str "{\n"
        (to-string-fragment (.graph g))
@@ -216,58 +293,6 @@
       (is (= (collapse-whitespace (to-string-fragment u))
              "{ { { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { <http://f.com/b> <http://xmlns.com/foaf/0.1/bae> ?s} } OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }"
              )))))
-
-
-;;; Expressions (we will need these for filter, bind, and rename operations)
-
-(deftype Expr [term])
-
-(def inline-operators (set (map name '(+ - * / = < > <= >=))))
-
-(defn stringize-expr [term]
-  (cond
-    (seq? term)
-    (let [[op & args] term
-          op (name op)]
-      (if (contains? inline-operators op)
-        ;; (+ a b c d) => "((((a) + b) + c) + d)"
-        (reduce (fn [e r]
-                  (if e
-                    (str "(" e " " op " " r ")")
-                    (str "(" r ")")))
-                (map stringize-expr args))
-        (str op "(" (str/join ", " (map stringize-expr args)) ")")))
-
-    ;; not at all sure it is sensible to support this syntax, need to think
-    ;; about it some more.  But if we don't, user needs to antiquote
-    ;; variables in quoted expressions :-(
-    (and (symbol? term) (= (first (name term)) \?))
-    (name term)
-
-    :else
-    (rdf/serialize-term term)))
-
-(deftest ^{:private true} express-yourself
-  (is (= (stringize-expr '7) "7"))
-  (is (= (stringize-expr '?foo) "?foo"))
-
-  (is (= (stringize-expr (u "http://f.com")) "<http://f.com>"))
-  (is (= (stringize-expr :rdf/type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
-
-  ;; variadic inline op
-  (is (= (stringize-expr '(+ 1 2 3)) "((1 + 2) + 3)"))
-  (is (= (stringize-expr '(+ 1 2 3 17)) "(((1 + 2) + 3) + 17)"))
-
-  ;; nested operations
-  (is (= (stringize-expr '(+ 1 (- 2 3) 4)) "((1 + (2 - 3)) + 4)"))
-
-  ;; function call
-  (is (= (stringize-expr '(fn 6 7 8)) "fn(6, 7, 8)"))
-  (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, (7 + 7), 8)"))
-  )
-
-(defmethod to-string-fragment Expr [e]
-  (stringize-expr (.term e)))
 
 
 
