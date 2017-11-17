@@ -45,7 +45,11 @@
 (s/def ::uri (s/or ::uri uri?
                    ::prefixed-name ::prefixed-name))
 
-(s/def ::literal #(and (get-method rdf/serialize-term (class %)) true))
+(defn has-method? [m c] (and (get-method m c) true))
+
+;; XXX this wrongly allows URI as literals, which they are not
+(s/def ::literal #(has-method? rdf/serialize-term (class %)))
+
 
 ;;; Variables and individual terms
 
