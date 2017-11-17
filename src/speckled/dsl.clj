@@ -570,14 +570,14 @@
 (defn construct [template soln-seq] (->Construction template soln-seq))
 
 (deftest ^{:private true} rdf-construction
-  (binding [prefixes (assoc prefixes "shlv" "http://example.com/ns#")]
+  (binding [prefixes (assoc prefixes "x" "http://example.com/ns#")]
     (is (equal-but-for-whitespace
          (to-string-fragment
-          (construct (group [(? :n) :shlv/isA :shlv/book]
-                            [(? :n) :shlv/edition (? :ed)]
-                            [(? :n) :shlv/title (? :title)])
+          (construct (group [(? :n) :x/isA :x/book]
+                            [(? :n) :x/edition (? :ed)]
+                            [(? :n) :x/title (? :title)])
                      (solve
-                      (group [(? :n) :shlv/copyOf (? :ed)]
+                      (group [(? :n) :x/copyOf (? :ed)]
                              [(? :n) :rdfs/label (? :title)]))))
          "CONSTRUCT {\n?n <http://example.com/ns#isA> <http://example.com/ns#book> .\n?n <http://example.com/ns#edition> ?ed .\n?n <http://example.com/ns#title> ?title}\n WHERE {\n?n <http://example.com/ns#copyOf> ?ed .\n?n <http://www.w3.org/2000/01/rdf-schema#label> ?title}\n"))))
 
