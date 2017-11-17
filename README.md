@@ -55,9 +55,6 @@ fairly simple example to show it off a bit
                         "Bertrand Russell Peace Foundation"]
                        [(? :a) :rdf/type :dct/Agent] )))))
     =>
-    PREFIX owl: <http://www.w3.org/2002/07/owl#>
-    PREFIX rdau: <http://rdaregistry.info/Elements/u/>
-    [... more prefix declarations omitted for brevity ...]
     SELECT *  WHERE {
       ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
       ?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/dc/terms/Agent>}

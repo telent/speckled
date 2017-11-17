@@ -253,14 +253,10 @@
 (defn- equal-but-for-whitespace [a b]
   (= (collapse-whitespace a) (collapse-whitespace b)))
 
-(defn- delete-prefixes [str]
-  "For test assertions: strip PREFIX and BASE directives from string"
-  (str/replace str #"(?m)^(PREFIX|BASE).*\n+"  ""))
-
 (defn- equal-form
   "For test assertions: compare arguments after removing PREFIX and BASE directives from each"
   [a b]
-  (equal-but-for-whitespace (delete-prefixes a) (delete-prefixes b)))
+  (equal-but-for-whitespace a b ))
 
 
 (deftest ^{:private true} union-city-blues
@@ -648,7 +644,7 @@
                   [(? :a) :rdf/type :dct/Agent]
                   ))]
     (is (equal-but-for-whitespace
-         (delete-prefixes s)
+         s
          "SELECT *
 WHERE {
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
@@ -665,7 +661,7 @@ WHERE {
                     [(? :a) :rdf/type :dct/Agent]
                     ))))]
     (is (equal-but-for-whitespace
-         (delete-prefixes s)
+         s
          "SELECT ?a WHERE
 {
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
@@ -680,7 +676,7 @@ WHERE {
                   [(? :a) :rdf/type :dct/Agent]
                   ))]
     (is (equal-but-for-whitespace
-         (delete-prefixes s)
+         s
          "SELECT * WHERE
 {
  ?a <http://www.w3.org/2000/01/rdf-schema#label> \"Bertrand Russell Peace Foundation\" .
@@ -719,7 +715,7 @@ WHERE {
                  (solve (group [(? :n) (? :v) (? :name)]))
                  3))]
     (is (equal-but-for-whitespace
-         (delete-prefixes (->string sparql))
+          (->string sparql)
          "CONSTRUCT {
    ?n <http://www.w3.org/2000/01/rdf-schema#label> \"hey\" .
    ?n <http://xmlns.com/foaf/0.1/familyName> ?name}
