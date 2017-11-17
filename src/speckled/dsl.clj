@@ -8,6 +8,8 @@
            [java.text SimpleDateFormat]
            [java.net URL URI])
   (:require [clojure.java.io :as io]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as stest]
             [clojure.string :as str]
             [clojure.test :as test :refer [is deftest with-test]]
             [speckled.rdf :as rdf :refer [u]]))
@@ -38,6 +40,12 @@
   (is (= (rdf/serialize-term (u :rdf/type))
          "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>")))
 
+(s/def ::prefixed-name keyword?)
+
+(s/def ::uri (s/or ::uri uri?
+                   ::prefixed-name ::prefixed-name))
+
+(s/def ::literal #(and (get-method rdf/serialize-term (class %)) true))
 
 ;;; Variables and individual terms
 
@@ -48,6 +56,7 @@
 (deftest ^{:private true} serialize-variable
   (is (= (rdf/serialize-term (? :foo)) "?foo")))
 
+(s/def ::variable (partial instance? Variable))
 
 ;;; almost everything past this point responds to to-string-fragment
 
@@ -56,60 +65,23 @@
 (defmethod to-string-fragment String [s] s)
 
 
-;;; expressions (for filter, bind, and rename operations)
-
-(deftype Expr [term])
-
-(def inline-operators (set (map name '(+ - * / = < > <= >=))))
-
-(defn stringize-expr [term]
-  (cond
-    (seq? term)
-    (let [[op & args] term
-          op (name op)]
-      (if (contains? inline-operators op)
-        ;; (+ a b c d) => "((((a) + b) + c) + d)"
-        (reduce (fn [e r]
-                  (if e
-                    (str "(" e " " op " " r ")")
-                    (str "(" r ")")))
-                (map stringize-expr args))
-        (str op "(" (str/join ", " (map stringize-expr args)) ")")))
-
-    ;; not at all sure it is sensible to support this syntax, need to think
-    ;; about it some more.  But if we don't, user needs to antiquote
-    ;; variables in quoted expressions :-(
-    (and (symbol? term) (= (first (name term)) \?))
-    (name term)
-
-    :else
-    (rdf/serialize-term term)))
-
-(deftest ^{:private true} express-yourself
-  (is (= (stringize-expr '7) "7"))
-  (is (= (stringize-expr '?foo) "?foo"))
-
-  (is (= (stringize-expr (u "http://f.com")) "<http://f.com>"))
-  (is (= (stringize-expr :rdf/type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
-
-  ;; variadic inline op
-  (is (= (stringize-expr '(+ 1 2 3)) "((1 + 2) + 3)"))
-  (is (= (stringize-expr '(+ 1 2 3 17)) "(((1 + 2) + 3) + 17)"))
-
-  ;; nested operations
-  (is (= (stringize-expr '(+ 1 (- 2 3) 4)) "((1 + (2 - 3)) + 4)"))
-
-  ;; function call
-  (is (= (stringize-expr '(fn 6 7 8)) "fn(6, 7, 8)"))
-  (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, (7 + 7), 8)"))
-  )
-
-(defmethod to-string-fragment Expr [e]
-  (stringize-expr (.term e)))
-
 
 ;;; triples
 
+(s/def ::blank-node false) ; still need to decide how to represent these
+
+(s/def ::triple (s/tuple (s/or ::uri ::uri
+                               ::variable ::variable
+                               ::blank-node ::blank-node)
+                         (s/or ::uri ::uri
+                               ::variable ::variable
+                               ::blank-node ::blank-node)
+                         (s/or ::uri ::uri
+                               ::variable ::variable
+                               ::literal ::literal
+                               ::blank-node ::blank-node)))
+
+(s/def ::triples (s/coll-of ::triple))
 ;;; supporting rdf list syntax was in the "no, why would you ever
 ;;; need *that*?" category right up until I found that jena property
 ;;; functions (notably, fulltext search on lucene indices) are invoked
@@ -136,9 +108,15 @@
 
 ;; groups
 
-(deftype Group [triples])
+(defrecord Group [triples])
 (derive Group ::graph)
+(s/def ::group (s/and #(instance? Group %) (s/keys :req-un [::triples])))
+
 (defn group [ & triples ] (->Group triples))
+(s/fdef group
+        :args (s/coll-of ::triple)
+        :ret (partial instance? Group))
+
 (defmethod to-string-fragment Group [group]
   (str "{\n" (str/join " .\n" (map to-string-fragment (.triples group)))
        "}\n"))
@@ -235,6 +213,57 @@
              "{ { { <http://f.com/a> <http://f.com/b> <http://f.com/c>} OPTIONAL { <http://f.com/b> <http://xmlns.com/foaf/0.1/bae> ?s} } OPTIONAL { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"} }"
              )))))
 
+
+;;; Expressions (we will need these for filter, bind, and rename operations)
+
+(deftype Expr [term])
+
+(def inline-operators (set (map name '(+ - * / = < > <= >=))))
+
+(defn stringize-expr [term]
+  (cond
+    (seq? term)
+    (let [[op & args] term
+          op (name op)]
+      (if (contains? inline-operators op)
+        ;; (+ a b c d) => "((((a) + b) + c) + d)"
+        (reduce (fn [e r]
+                  (if e
+                    (str "(" e " " op " " r ")")
+                    (str "(" r ")")))
+                (map stringize-expr args))
+        (str op "(" (str/join ", " (map stringize-expr args)) ")")))
+
+    ;; not at all sure it is sensible to support this syntax, need to think
+    ;; about it some more.  But if we don't, user needs to antiquote
+    ;; variables in quoted expressions :-(
+    (and (symbol? term) (= (first (name term)) \?))
+    (name term)
+
+    :else
+    (rdf/serialize-term term)))
+
+(deftest ^{:private true} express-yourself
+  (is (= (stringize-expr '7) "7"))
+  (is (= (stringize-expr '?foo) "?foo"))
+
+  (is (= (stringize-expr (u "http://f.com")) "<http://f.com>"))
+  (is (= (stringize-expr :rdf/type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
+
+  ;; variadic inline op
+  (is (= (stringize-expr '(+ 1 2 3)) "((1 + 2) + 3)"))
+  (is (= (stringize-expr '(+ 1 2 3 17)) "(((1 + 2) + 3) + 17)"))
+
+  ;; nested operations
+  (is (= (stringize-expr '(+ 1 (- 2 3) 4)) "((1 + (2 - 3)) + 4)"))
+
+  ;; function call
+  (is (= (stringize-expr '(fn 6 7 8)) "fn(6, 7, 8)"))
+  (is (= (stringize-expr '(fn 6 (+ 7 7) 8)) "fn(6, (7 + 7), 8)"))
+  )
+
+(defmethod to-string-fragment Expr [e]
+  (stringize-expr (.term e)))
 
 
 
@@ -667,3 +696,5 @@ WHERE {
    ?n <http://xmlns.com/foaf/0.1/familyName> ?name}
 WHERE { ?n ?v ?name} LIMIT 3"
          ))))
+
+(stest/instrument)
