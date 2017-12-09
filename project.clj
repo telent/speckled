@@ -11,7 +11,6 @@
                  [clj-time "0.11.0"]
                  [instaparse "1.4.1"]
                  [org.clojure/data.zip "0.1.1"]
-                 [prismatic/schema "1.0.5"]
                  ]
   :profiles {
              :test {:dependencies [[clj-http "2.1.0"]]}
