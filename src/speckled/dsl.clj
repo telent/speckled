@@ -622,8 +622,6 @@
   (->Replacement deletions insertions (rdf-to-soln-seq soln-seq)))
 
 
-(defn- declare-prefixes [query] query)
-
 (defn ->string [sparql]
   (-> sparql
       rdf-to-top-level-form

@@ -301,7 +301,7 @@ you a response directly, and as of 0.4.1 doesn't support `{:as
 
 ## License
 
-Copyright © 2015,2016 Daniel Barlow
+Copyright © 2015-2017 Daniel Barlow
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
