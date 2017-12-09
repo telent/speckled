@@ -1,4 +1,4 @@
-(defproject telent/speckled "0.1.0-SNAPSHOT"
+(defproject telent/speckled "0.2.0-SNAPSHOT"
   :description "SPARQL DSL and stuff"
   :url "http://github.com/telent/speckled"
   :repositories [["snapshots" {:url  "https://clojars.org/repo"
