@@ -169,29 +169,36 @@
     (seq? term)
     (let [[op & args] term
           op (name op)]
-      (if (contains? inline-operators op)
-        ;; (+ a b c d) => "((((a) + b) + c) + d)"
-        (reduce (fn [e r]
-                  (if e
-                    (str "(" e " " op " " r ")")
-                    (str "(" r ")")))
-                (map stringize-expr args))
-        (str op "(" (str/join ", " (map stringize-expr args)) ")")))
+      (cond (contains? inline-operators op)
+            ;; (+ a b c d) => "((((a) + b) + c) + d)"
+            (reduce (fn [e r]
+                      (if e
+                        (str "(" e " " op " " r ")")
+                        (str "(" r ")")))
+                    (map stringize-expr args))
 
-    ;; not at all sure it is sensible to support this syntax, need to think
-    ;; about it some more.  But if we don't, user needs to antiquote
-    ;; variables in quoted expressions :-(
+            (= op "?")
+            (str "?" (name (first args)))
+
+            :else
+            (str op "(" (str/join ", " (map stringize-expr args)) ")")))
+
+    ;; this allows us to write ?foo instead of (? :foo) in
+    ;; expressions.  I am thinking about removing it as not sure if
+    ;; the payoff is worth the extra complexity
     (and (symbol? term) (= (first (name term)) \?))
     (name term)
 
     :else
     (rdf/serialize-term term)))
 
+
 (s/fdef stringize-expr :args (s/cat ::form ::expr-form))
 
 (deftest ^{:private true} express-yourself
   (is (= (stringize-expr '7) "7"))
   (is (= (stringize-expr '?foo) "?foo"))
+  (is (= (stringize-expr '(? :foo)) "?foo"))
 
   (is (= (stringize-expr (u "http://f.com")) "<http://f.com>"))
   (is (= (stringize-expr :rdf/type) "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"))
@@ -293,7 +300,7 @@
 ;; To make the scope a bit clearer and a bit less dependent on textual
 ;; proximity, we say that the BGP relevant to our Binding construct
 ;; is a property of the construct not just whatever happens to have
-;; gone before.
+;; gone before it textually.
 
 (deftype Binding [variable value group])
 (derive Binding ::graph)
