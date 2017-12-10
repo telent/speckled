@@ -15,10 +15,6 @@
 
 (def ^:dynamic fuseki-service-url "http://localhost:3030/small/")
 
-(defmacro with-fixture-db [& body]
-  `(binding [fuseki-service-url "http://localhost:3030/scratch/"]
-     ~@body))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; parsing query results (xml)
 
