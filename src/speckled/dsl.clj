@@ -164,7 +164,7 @@
                          ::expr (s/cat ::op symbol?
                                        ::args (s/* ::expr-form))))
 
-(defn stringize-expr [term]
+(defn- stringize-expr [term]
   (cond
     (seq? term)
     (let [[op & args] term
