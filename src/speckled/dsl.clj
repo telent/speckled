@@ -311,15 +311,15 @@
   (str "{ " (to-string-fragment (.group b))
        " BIND("
        (to-string-fragment (.value b))
-       " AS " (rdf/serialize-term (.variable b))
+       " AS " (rdf/serialize-term (? (.variable b)))
        ")\n}\n"))
 
 (deftest ^{:private true} bind-us-together
-  (let [b (bind [(? :foo) '(concat (* (random) 2) ?s)]
+  (let [b (bind [:foo '(concat (* (random) 2) ?s)]
                 (group [(? :s) :rdf/a "foo"]))]
     (is (= (to-string-fragment b)
            "{ {\n?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#a> \"foo\"}\n BIND(concat((random() * 2), ?s) AS ?foo)\n}\n")))
-  (let [b (bind [(? :foo ) "19281"]
+  (let [b (bind [:foo "19281"]
                 (group [(? :s) :rdf/a "foo"]))]
     (is (= (collapse-whitespace (to-string-fragment b))
            ;; an answer without the inner { } would be just as acceptable
@@ -454,27 +454,27 @@
                            "("
                            (to-string-fragment term)
                            " AS "
-                           (rdf/serialize-term var)
+                           (rdf/serialize-term (? var))
                            ")"))
-                        (.aggregating-variables v))]
+                        (.aggregating-variables v))
+        group-by (map rdf/serialize-term (.grouping-variables v))]
     (str "SELECT "
-         (str/join " \n" (map rdf/serialize-term (.grouping-variables v)))
+         (str/join " \n" group-by)
          " \n"
-         (str/join
-          " \n"
-          aggregates)
+         (str/join " \n"
+                   aggregates)
          (to-string-fragment (.solution v))
          " GROUP BY "
-         (to-string-fragment (.grouping-variables v)))))
+         (str/join " " group-by))))
 
 (deftest ^{:private true} group-by-test
   (binding [prefixes (assoc prefixes "b" "http://f.com/ns#")]
     (let [subject
           (to-string-fragment
            (grouping [(? :lastname) (? :postcode)]
-                     [(? :bikes) '(count ?framenumber)
-                      (? :weight) '(sum ?weight)
-                      (? :value) '(sum ?cost)]
+                     [:bikes '(count ?framenumber)
+                      :weight '(sum ?weight)
+                      :value '(sum ?cost)]
                      (group [(? :person) :b/named (? :lastname)]
                             [(? :person) :b/livesAt (? :address)]
                             [(? :address) :b/hasPostcode (? :postcode)]

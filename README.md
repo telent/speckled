@@ -160,11 +160,11 @@ haven't got to them yet.  Patches, as they say, welcome.
   filter expression in Speckled is *outside* the group (i.e. [where it
   logically ought to be](https://www.w3.org/TR/sparql11-query/#sparqlCollectFilters)) not inside it where SPARQL syntax expects it.
 
-* `(bind [(? :v) expr (? :v2) expr2 ...] g1)` to define new variable
- names `v`, `v2` etc and give them values derived from the variables in `g1`.
+* `(bind [:v expr :v2 expr2 ...] g1)` to define new variable
+ names `?v`, `?v2` etc and give them values derived from the variables in `g1`.
  See [SPARQL `BIND`](https://www.w3.org/TR/sparql11-query/#bind)
 
-* `(grouping [(? :v1) (? :v2) ...] [(? :v3) '(min x) (? :v4) '(count y) ...] g0)`
+* `(grouping [(? :v1) (? :v2) ...] [:v3 '(min x) :v4 '(count y) ...] g0)`
 
    Group the solutions of `g0` into subsequences such that in each
    subsequence, every solution has the same values of `?v1` `?v2` etc.
@@ -175,6 +175,15 @@ haven't got to them yet.  Patches, as they say, welcome.
    
    https://www.w3.org/TR/sparql11-query/#groupby
 
+   Note that the grouping expressions are expressions but the
+   variable names defining the aggregates are just names.  i.e. you need
+   to write `(? :foo)` for variables in the first argument but only
+   `:foo` in the second.   We don't presently support translation to `AS`: 
+   there is no way to generate `GROUP BY (?x + ?y AS ?z)`.  Use `bind`
+   if you want to group on an expression.
+   
+ 
+
 #### Functions
 
 The `bind` and `grouping` operations allow you to call functions which
@@ -182,14 +191,16 @@ take literals and variable references as parameters.  Write them as
 quoted lists: for example, 
 
 ```
-     (bind [(? :evid)
+     (bind [:evid
             '(iri (concat "http://example.com/events/" (struuid)))]
            (group ...))
 ```
 
 This is converted to the SPARQL
-`iri(concat("http://example.com/events/", struuid()))`.  A small
-selection of arithmetic functions are recognised and converted to infix.
+`iri(concat("http://example.com/events/", struuid()))`.  The
+expression parser recognises a small
+selection of arithmetic functions which it converts to infix, and the 
+form `(? foo)` which it converts into `?foo`.
 
 
 ### Solution sequence modifiers
