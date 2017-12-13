@@ -275,38 +275,31 @@ to get
 or something, modulo whitespace changes, very much like it.
 
 
-# Talking to SPARQL servers
+# Parsing results
 
-    (def post-http (comp http/post :body))
+Look in speckled.query-results
 
-    (speckled.net/query post-http "http://localhost:3030/ds/"
-                        "SELECT  ?p ?o WHERE { </foo/2> ?p ?o }")
+## Putting it all together
 
-Presently there are separate functions for different top level forms
+Speckled doesn't support any particular HTTP client library because
+your app probably uses a different one already.  We deal with
+generating the query and parsing the serialised XML that your SPARQL
+server should send back, and leave you to provide the HTTP magic
+appropriate to your favourite (clj-http , HTTP-kit, Aleph etc)
 
-* for SELECT use `query`
-* for INSERT use `insert-store`
-* for CONSTRUCT use `query-graph`
+If you're using Aleph, for example, you might do someting like this:
 
-This is ugly and I will look at unifying these interfaces just as soon as I have a good idea how to
+```
+  (let [post-rq #(http/post "http://localhost:3030/agraph/query"
+                            {:content-type "application/sparql-query"
+                             :body %
+                             :accept "application/n-triples"})]
+    (-> my-query-form
+        speckled.dsl/->string
+        post-rq deref :body  ; <- this is where we do the aleph stuff
+        speckled.query-results/from-reader))
+```
 
-## Choose your own HTTP library
-
-(If you don't have your own HTTP library you can always choose to use
-somebody else's ;-)
-
-The first argument to `query` is the function that your preferred HTTP
-client uses to do a POST request.  It should accept the same arguments
-as `clj-http.client/post` _and return the response body as a string.
-For example, to use the client from HTTP-Kit you might say
-
-    (def post-http (comp deref org.httpkit.client/post))
-
-or to use Aleph (which returns a Manifold deferred instead of giving
-you a response directly, and as of 0.4.1 doesn't support `{:as
-:text}`) you could do 
-
-    (def post-http (comp slurp :body deref http/post))
 
 
 
