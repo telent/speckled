@@ -10,6 +10,7 @@
                  [org.apache.httpcomponents/httpclient "4.5.1"]
                  [clj-time "0.11.0"]
                  [instaparse "1.4.1"]
+                 [org.clojure/data.xml "0.0.8"]
                  [org.clojure/data.zip "0.1.1"]
                  ]
   :profiles {
